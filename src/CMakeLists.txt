@@ -13,11 +13,12 @@ include_directories(
 set(MODULE_NAME otctl)
 
 set(cxx-sources
+  "CLI.cpp"
   "main.cpp"
 )
 
 set(cxx-headers
-  ""
+  "CLI.hpp"
 )
 
 add_executable(${MODULE_NAME}
@@ -35,6 +36,17 @@ target_link_libraries(
   ${Boost_SYSTEM_LIBRARIES}
   ${Boost_FILESYSTEM_LIBRARIES}
   ${Boost_PROGRAM_OPTIONS_LIBRARIES}
+  ${CURSES_LIBRARIES}
+)
+
+target_include_directories(
+  ${MODULE_NAME}
+  PRIVATE
+  ${PROTOBUF_INCLUDE_DIRS}
+  ${OPENTXS_INCLUDE_DIRS}
+  ${OPENTXS_PROTO_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS}
+  ${CURSES_INCLUDE_DIRS}
 )
 
 set_property(TARGET ${MODULE_NAME} PROPERTY POSITION_INDEPENDENT_CODE 1)
