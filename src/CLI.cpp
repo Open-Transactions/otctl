@@ -25,6 +25,53 @@ const std::map<proto::RPCCommandType, CLI::Processor> CLI::processors_{
     {proto::RPCCOMMAND_ADDCLIENTSESSION, &CLI::add_client_session}
 };
 
+const std::map<proto::RPCCommandType, std::string> CLI::command_names_{
+    {proto::RPCCOMMAND_ADDCLIENTSESSION, "ADDCLIENTSESSION"},
+    {proto::RPCCOMMAND_ADDSERVERSESSION, "ADDSERVERSESSION"},
+    {proto::RPCCOMMAND_LISTCLIENTSSESSIONS, "LISTCLIENTSSESSIONS"},
+    {proto::RPCCOMMAND_LISTSERVERSSESSIONS, "LISTSERVERSSESSIONS"},
+    {proto::RPCCOMMAND_IMPORTHDSEED, "IMPORTHDSEED"},
+    {proto::RPCCOMMAND_LISTHDSEEDS, "LISTHDSEEDS"},
+    {proto::RPCCOMMAND_GETHDSEED, "GETHDSEED"},
+    {proto::RPCCOMMAND_CREATENYM, "CREATENYM"},
+    {proto::RPCCOMMAND_LISTNYMS, "LISTNYMS"},
+    {proto::RPCCOMMAND_GETNYM, "GETNYM"},
+    {proto::RPCCOMMAND_ADDCLAIM, "ADDCLAIM"},
+    {proto::RPCCOMMAND_DELETECLAIM, "DELETECLAIM"},
+    {proto::RPCCOMMAND_IMPORTSERVERCONTRACT, "IMPORTSERVERCONTRACT"},
+    {proto::RPCCOMMAND_LISTSERVERCONTRACTS, "LISTSERVERCONTRACTS"},
+    {proto::RPCCOMMAND_REGISTERNYM, "REGISTERNYM"},
+    {proto::RPCCOMMAND_CREATEUNITDEFINITION, "CREATEUNITDEFINITION"},
+    {proto::RPCCOMMAND_LISTUNITDEFINITIONS, "LISTUNITDEFINITIONS"},
+    {proto::RPCCOMMAND_ISSUEUNITDEFINITION, "ISSUEUNITDEFINITION"},
+    {proto::RPCCOMMAND_CREATEACCOUNT, "CREATEACCOUNT"},
+    {proto::RPCCOMMAND_LISTACCOUNTS, "LISTACCOUNTS"},
+    {proto::RPCCOMMAND_GETACCOUNTBALANCE, "GETACCOUNTBALANCE"},
+    {proto::RPCCOMMAND_GETACCOUNTACTIVITY, "GETACCOUNTACTIVITY"},
+    {proto::RPCCOMMAND_SENDPAYMENT, "SENDPAYMENT"},
+    {proto::RPCCOMMAND_MOVEFUNDS, "MOVEFUNDS"},
+    {proto::RPCCOMMAND_ADDCONTACT, "ADDCONTACT"},
+    {proto::RPCCOMMAND_LISTCONTACTS, "LISTCONTACTS"},
+    {proto::RPCCOMMAND_GETCONTACT, "GETCONTACT"},
+    {proto::RPCCOMMAND_ADDCONTACTCLAIM, "ADDCONTACTCLAIM"},
+    {proto::RPCCOMMAND_DELETECONTACTCLAIM, "DELETECONTACTCLAIM"},
+    {proto::RPCCOMMAND_VERIFYCLAIM, "VERIFYCLAIM"},
+    {proto::RPCCOMMAND_ACCEPTVERIFICATION, "ACCEPTVERIFICATION"},
+    {proto::RPCCOMMAND_SENDCONTACTMESSAGE, "SENDCONTACTMESSAGE"},
+    {proto::RPCCOMMAND_GETCONTACTACTIVITY, "GETCONTACTACTIVITY"},
+};
+
+const std::map<proto::RPCResponseCode, std::string> CLI::status_names_{
+    {proto::RPCRESPONSE_INVALID, "INVALID"},
+    {proto::RPCRESPONSE_SUCCESS, "SUCCESS"},
+    {proto::RPCRESPONSE_BAD_SESSION, "BAD_SESSION"},
+    {proto::RPCRESPONSE_NONE, "NONE"},
+    {proto::RPCRESPONSE_PARTIAL, "PARTIAL"},
+    {proto::RPCRESPONSE_QUEUED, "QUEUED"},
+    {proto::RPCRESPONSE_UNNECESSARY, "UNNECESSARY"},
+    {proto::RPCRESPONSE_ERROR, "ERROR"},
+};
+
 CLI::CLI(const api::Native& ot)
     : ot_(ot)
     , endpoint_(get_socket_path())
@@ -43,7 +90,6 @@ void CLI::add_client_session(
     const std::string& in,
     const network::zeromq::DealerSocket& socket)
 {
-    otErr << "Sending ADDCLIENTSESSION command" << std::endl;
     proto::RPCCommand out{};
     out.set_version(RPC_COMMAND_VERSION);
     out.set_cookie(Identifier::Random()->str());
@@ -56,13 +102,12 @@ void CLI::add_client_session(
     const auto sent = socket.Send(proto::ProtoAsData(out));
 
     OT_ASSERT(sent);
-
-    otErr << "Sent" << std::endl;
 }
 
 void CLI::add_client_session_response(const proto::RPCResponse& in)
 {
-    otErr << " * Received ADDCLIENTSESSION response." << std::endl;
+    print_basic_info(in);
+    otErr << "   Session: " << in.session() << std::endl;
 }
 
 void CLI::callback(network::zeromq::Message& in)
@@ -92,6 +137,15 @@ void CLI::callback(network::zeromq::Message& in)
     }
 }
 
+std::string CLI::get_command_name(const proto::RPCCommandType type)
+{
+    try {
+        return command_names_.at(type);
+    } catch (...) {
+        return std::to_string(type);
+    }
+}
+
 std::string CLI::get_socket_path()
 {
     std::string socket_path{"ipc://"};
@@ -113,6 +167,21 @@ std::string CLI::get_socket_path()
     }
 
     return socket_path;
+}
+
+std::string CLI::get_status_name(const proto::RPCResponseCode code)
+{
+    try {
+        return status_names_.at(code);
+    } catch (...) {
+        return std::to_string(code);
+    }
+}
+
+void CLI::print_basic_info(const proto::RPCResponse& in)
+{
+    otErr << " * Received RPC reply type: " << get_command_name(in.type())
+          << "\n   Status: " << get_status_name(in.success()) << std::endl;
 }
 
 int CLI::Run()
