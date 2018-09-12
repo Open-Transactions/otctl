@@ -7,8 +7,12 @@
 
 #include <opentxs/opentxs.hpp>
 
+#include <boost/program_options.hpp>
+
 #include <functional>
 #include <map>
+
+namespace po = boost::program_options;
 
 namespace opentxs::otctl
 {
@@ -24,13 +28,13 @@ public:
 private:
     using PushHandler = void (*)(const proto::RPCPush&);
     using ResponseHandler = void (*)(const proto::RPCResponse&);
-    using Processor = void (*)(
-        const std::string&,
-        const network::zeromq::DealerSocket&);
+    using Processor =
+        void (*)(const std::string&, const network::zeromq::DealerSocket&);
 
     static const std::map<std::string, proto::RPCCommandType> commands_;
     static const std::map<proto::RPCPushType, PushHandler> push_handlers_;
-    static const std::map<proto::RPCCommandType, ResponseHandler> response_handlers_;
+    static const std::map<proto::RPCCommandType, ResponseHandler>
+        response_handlers_;
     static const std::map<proto::RPCCommandType, Processor> processors_;
     static const std::map<proto::RPCCommandType, std::string> command_names_;
     static const std::map<proto::RPCResponseCode, std::string> status_names_;
@@ -43,12 +47,21 @@ private:
     static void add_client_session(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
+    static void create_nym(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
+
     static void add_client_session_response(const proto::RPCResponse& in);
+    static void create_nym_response(const proto::RPCResponse& in);
+
     static std::string find_home();
     static std::string get_command_name(const proto::RPCCommandType type);
     static std::string get_json();
     static std::string get_socket_path();
     static std::string get_status_name(const proto::RPCResponseCode code);
+    static void parse_command(
+        const std::string& input,
+        po::options_description& options);
     static void print_basic_info(const proto::RPCPush& in);
     static void print_basic_info(const proto::RPCResponse& in);
     static void process_push(network::zeromq::Message& in);
@@ -64,4 +77,4 @@ private:
     CLI& operator=(const CLI&) = delete;
     CLI& operator=(CLI&&) = delete;
 };
-}  // namespace opentxs::agent
+}  // namespace opentxs::otctl
