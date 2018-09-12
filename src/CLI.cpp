@@ -22,7 +22,10 @@ namespace opentxs::otctl
 const std::map<std::string, proto::RPCCommandType> CLI::commands_{
     {"addclient", proto::RPCCOMMAND_ADDCLIENTSESSION}
 };
-const std::map<proto::RPCCommandType, CLI::Handler> CLI::response_handlers_{
+const std::map<proto::RPCPushType, CLI::PushHandler> CLI::push_handlers_{
+    {proto::RPCPUSH_TASK, &CLI::task_complete_push},
+};
+const std::map<proto::RPCCommandType, CLI::ResponseHandler> CLI::response_handlers_{
     {proto::RPCCOMMAND_ADDCLIENTSESSION, &CLI::add_client_session_response}
 };
 const std::map<proto::RPCCommandType, CLI::Processor> CLI::processors_{
@@ -117,20 +120,21 @@ void CLI::add_client_session_response(const proto::RPCResponse& in)
 
 void CLI::callback(network::zeromq::Message& in)
 {
-    if (1 > in.Body().size()) {
-        otErr << __FUNCTION__ << ": Invalid reply." << std::endl;
+    const auto size = in.Body().size();
+
+    if (1 > size) {
+        otErr << __FUNCTION__ << ": Missing reply." << std::endl;
 
         return;
     }
 
-    const auto& frame = in.Body_at(0);
-    const auto response = proto::RawToProto<proto::RPCResponse>(
-        frame.data(), frame.size());
+    if (1 == size) { process_reply(in); }
 
-    if (false == proto::Validate(response, SILENT)) {
-        otErr << __FUNCTION__ << ": Invalid RPCResponse." << std::endl;
+    if (2 == size) { process_push(in); }
 
-        return;
+    otErr << __FUNCTION__ << ": Invalid reply." << std::endl;
+}
+
 std::string CLI::find_home()
 {
     std::string output;
@@ -227,10 +231,58 @@ std::string CLI::get_status_name(const proto::RPCResponseCode code)
     }
 }
 
+void CLI::print_basic_info(const proto::RPCPush& in)
+{
+    otErr << " * Received RPC push notification for " << in.id()
+          << "\n" << std::endl;
+}
+
 void CLI::print_basic_info(const proto::RPCResponse& in)
 {
     otErr << " * Received RPC reply type: " << get_command_name(in.type())
           << "\n   Status: " << get_status_name(in.success()) << std::endl;
+}
+
+void CLI::process_push(network::zeromq::Message& in)
+{
+    const auto& frame = in.Body_at(1);
+    const auto response = proto::RawToProto<proto::RPCPush>(
+        frame.data(), frame.size());
+
+    if (false == proto::Validate(response, SILENT)) {
+        otErr << __FUNCTION__ << ": Invalid RPCPush." << std::endl;
+
+        return;
+    }
+
+    try {
+        auto& handler = *push_handlers_.at(response.type());
+        handler(response);
+    } catch (...) {
+        otErr << __FUNCTION__ << ": Unhandled response type: "
+            << std::to_string(response.type()) << std::endl;
+    }
+}
+
+void CLI::process_reply(network::zeromq::Message& in)
+{
+    const auto& frame = in.Body_at(0);
+    const auto response = proto::RawToProto<proto::RPCResponse>(
+        frame.data(), frame.size());
+
+    if (false == proto::Validate(response, SILENT)) {
+        otErr << __FUNCTION__ << ": Invalid RPCResponse." << std::endl;
+
+        return;
+    }
+
+    try {
+        auto& handler = *response_handlers_.at(response.type());
+        handler(response);
+    } catch (...) {
+        otErr << __FUNCTION__ << ": Unhandled response type: "
+            << std::to_string(response.type()) << std::endl;
+    }
 }
 
 int CLI::Run()
@@ -269,5 +321,15 @@ void CLI::set_keys(network::zeromq::DealerSocket& socket)
     const auto clientPrivateKey = main["client_privkey"].asString();
     const auto clientPublicKey = main["client_pubkey"].asString();
     socket.SetKeysZ85(serverKey, clientPrivateKey, clientPublicKey);
+}
+
+void CLI::task_complete_push(const proto::RPCPush& in)
+{
+    print_basic_info(in);
+    const auto& task = in.taskcomplete();
+    otErr << "   Type: TASK" << std::endl;
+    otErr << "   ID: " << task.id() << std::endl;
+    otErr << "   Result: " << ((task.result()) ? "success" : "failure")
+          << std::endl;
 }
 }  // namespace opentxs::otctl
