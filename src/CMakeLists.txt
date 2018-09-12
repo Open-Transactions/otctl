@@ -37,6 +37,7 @@ target_link_libraries(
   ${Boost_FILESYSTEM_LIBRARIES}
   ${Boost_PROGRAM_OPTIONS_LIBRARIES}
   ${CURSES_LIBRARIES}
+  ${JSONCPP_LIBRARIES}
 )
 
 target_include_directories(
@@ -47,6 +48,7 @@ target_include_directories(
   ${OPENTXS_PROTO_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
   ${CURSES_INCLUDE_DIRS}
+  ${JSONCPP_INCLUDE_DIRS}
 )
 
 set_property(TARGET ${MODULE_NAME} PROPERTY POSITION_INDEPENDENT_CODE 1)

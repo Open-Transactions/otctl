@@ -102,6 +102,7 @@ find_package(opentxs REQUIRED)
 find_package(Boost REQUIRED program_options filesystem system)
 set(CURSES_NEED_NCURSES TRUE)
 find_package(Curses REQUIRED)
+find_package(Jsoncpp REQUIRED)
 
 #-----------------------------------------------------------------------------
 # Force out-of-source build

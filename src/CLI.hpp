@@ -39,7 +39,9 @@ private:
     OTZMQDealerSocket socket_;
 
     static void add_client_session_response(const proto::RPCResponse& in);
+    static std::string find_home();
     static std::string get_command_name(const proto::RPCCommandType type);
+    static std::string get_json();
     static std::string get_socket_path();
     static std::string get_status_name(const proto::RPCResponseCode code);
     static void print_basic_info(const proto::RPCResponse& in);
@@ -47,6 +49,7 @@ private:
     static void add_client_session(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
+    static void set_keys(network::zeromq::DealerSocket& socket);
 
     void callback(network::zeromq::Message& in);
 

@@ -6,8 +6,12 @@
 #include "CLI.hpp"
 
 #include <boost/filesystem.hpp>
+#include <json/json.h>
 
+extern "C" {
+#include <pwd.h>
 #include <unistd.h>
+}
 
 namespace fs = boost::filesystem;
 
@@ -81,6 +85,7 @@ CLI::CLI(const api::Native& ot)
 {
     OT_ASSERT(false == endpoint_.empty());
 
+    set_keys(socket_);
     const auto connected = socket_->Start(endpoint_);
 
     OT_ASSERT(connected);
@@ -126,15 +131,33 @@ void CLI::callback(network::zeromq::Message& in)
         otErr << __FUNCTION__ << ": Invalid RPCResponse." << std::endl;
 
         return;
+std::string CLI::find_home()
+{
+    std::string output;
+#ifdef __APPLE__
+    output = OTPaths::AppDataFolder().Get();
+#else
+    std::string environment;
+    const char* env = getenv("HOME");
+
+    if (nullptr != env) { environment.assign(env); }
+
+    if (!environment.empty()) {
+        output = environment;
+    } else {
+        passwd* entry = getpwuid(getuid());
+        const char* password = entry->pw_dir;
+        output.assign(password);
     }
 
-    try {
-        auto& handler = *response_handlers_.at(response.type());
-        handler(response);
-    } catch (...) {
-        otErr << __FUNCTION__ << ": Unhandled response type: "
-              << std::to_string(response.type()) << std::endl;
+    if (output.empty()) {
+        opentxs::otErr << __FUNCTION__
+                       << ": Unable to determine the home directory."
+                       << std::endl;
     }
+#endif
+
+    return output;
 }
 
 std::string CLI::get_command_name(const proto::RPCCommandType type)
@@ -144,6 +167,32 @@ std::string CLI::get_command_name(const proto::RPCCommandType type)
     } catch (...) {
         return std::to_string(type);
     }
+}
+
+std::string CLI::get_json()
+{
+    const auto filename = find_home() + "/otagent.key";
+    boost::system::error_code ec{};
+
+    if (false == boost::filesystem::exists(filename, ec)) { return {}; }
+
+    std::ifstream file(
+        filename, std::ios::in | std::ios::ate | std::ios::binary);
+
+    if (file.good()) {
+        std::ifstream::pos_type pos = file.tellg();
+
+        if ((0 >= pos) || (0xFFFFFFFF <= pos)) { return {}; }
+
+        std::uint32_t size(pos);
+        file.seekg(0, std::ios::beg);
+        std::vector<char> bytes(size);
+        file.read(&bytes[0], size);
+
+        return std::string(&bytes[0], size);
+    }
+
+    return {};
 }
 
 std::string CLI::get_socket_path()
@@ -208,5 +257,17 @@ int CLI::Run()
     }
 
     return 0;
+}
+
+void CLI::set_keys(network::zeromq::DealerSocket& socket)
+{
+    std::stringstream json(get_json());
+    Json::Value root;
+    json >> root;
+    const auto main = root["otagent"];
+    const auto serverKey = main["server_pubkey"].asString();
+    const auto clientPrivateKey = main["client_privkey"].asString();
+    const auto clientPublicKey = main["client_pubkey"].asString();
+    socket.SetKeysZ85(serverKey, clientPrivateKey, clientPublicKey);
 }
 }  // namespace opentxs::otctl
