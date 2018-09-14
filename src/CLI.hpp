@@ -50,9 +50,13 @@ private:
     static void create_nym(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
+    static void register_nym(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
 
     static void add_client_session_response(const proto::RPCResponse& in);
     static void create_nym_response(const proto::RPCResponse& in);
+    static void register_nym_response(const proto::RPCResponse& in);
 
     static std::string find_home();
     static std::string get_command_name(const proto::RPCCommandType type);
@@ -66,6 +70,9 @@ private:
     static void print_basic_info(const proto::RPCResponse& in);
     static void process_push(network::zeromq::Message& in);
     static void process_reply(network::zeromq::Message& in);
+    static bool send_message(
+        const network::zeromq::DealerSocket& socket,
+        const proto::RPCCommand command);
     static void set_keys(network::zeromq::DealerSocket& socket);
     static void task_complete_push(const proto::RPCPush& in);
 

@@ -26,6 +26,7 @@ namespace opentxs::otctl
 const std::map<std::string, proto::RPCCommandType> CLI::commands_{
     {"addclient", proto::RPCCOMMAND_ADDCLIENTSESSION},
     {"createnym", proto::RPCCOMMAND_CREATENYM},
+    {"registernym", proto::RPCCOMMAND_REGISTERNYM},
 };
 const std::map<proto::RPCPushType, CLI::PushHandler> CLI::push_handlers_{
     {proto::RPCPUSH_TASK, &CLI::task_complete_push},
@@ -34,10 +35,12 @@ const std::map<proto::RPCCommandType, CLI::ResponseHandler>
     CLI::response_handlers_{
         {proto::RPCCOMMAND_ADDCLIENTSESSION, &CLI::add_client_session_response},
         {proto::RPCCOMMAND_CREATENYM, &CLI::create_nym_response},
+        {proto::RPCCOMMAND_REGISTERNYM, &CLI::register_nym_response},
     };
 const std::map<proto::RPCCommandType, CLI::Processor> CLI::processors_{
     {proto::RPCCOMMAND_ADDCLIENTSESSION, &CLI::add_client_session},
     {proto::RPCCOMMAND_CREATENYM, &CLI::create_nym},
+    {proto::RPCCOMMAND_REGISTERNYM, &CLI::register_nym},
 };
 
 const std::map<proto::RPCCommandType, std::string> CLI::command_names_{
@@ -115,7 +118,7 @@ void CLI::add_client_session(
 
     OT_ASSERT(valid);
 
-    const auto sent = socket.Send(proto::ProtoAsData(out));
+    const auto sent = send_message(socket, out);
 
     OT_ASSERT(sent);
 }
@@ -123,7 +126,7 @@ void CLI::add_client_session(
 void CLI::add_client_session_response(const proto::RPCResponse& in)
 {
     print_basic_info(in);
-    otErr << "   Session: " << in.session() << std::endl;
+    LogOutput("   Session: ")(in.session()).Flush();
 }
 
 void CLI::callback(network::zeromq::Message& in)
@@ -131,7 +134,7 @@ void CLI::callback(network::zeromq::Message& in)
     const auto size = in.Body().size();
 
     if (1 > size) {
-        otErr << __FUNCTION__ << ": Missing reply." << std::endl;
+        LogOutput(__FUNCTION__)(": Missing reply.").Flush();
 
         return;
     }
@@ -141,7 +144,7 @@ void CLI::callback(network::zeromq::Message& in)
     } else if (2 == size) {
         process_push(in);
     } else {
-        otErr << __FUNCTION__ << ": Invalid reply." << std::endl;
+        LogOutput(__FUNCTION__)(": Invalid reply.").Flush();
     }
 }
 
@@ -164,13 +167,13 @@ void CLI::create_nym(
     parse_command(in, options);
 
     if (-1 == instance) {
-        otErr << __FUNCTION__ << ": Missing instance option" << std::endl;
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
 
         return;
     }
 
     if (name.empty()) {
-        otErr << __FUNCTION__ << ": Missing name option" << std::endl;
+        LogOutput(__FUNCTION__)(": Missing name option").Flush();
 
         return;
     }
@@ -190,7 +193,7 @@ void CLI::create_nym(
 
     OT_ASSERT(valid);
 
-    const auto sent = socket.Send(proto::ProtoAsData(out));
+    const auto sent = send_message(socket, out);
 
     OT_ASSERT(sent);
 }
@@ -200,7 +203,7 @@ void CLI::create_nym_response(const proto::RPCResponse& in)
     print_basic_info(in);
 
     for (const auto& id : in.identifier()) {
-        otErr << "   Nym ID: " << id << std::endl;
+        LogOutput("   Nym ID: ")(id).Flush();
     }
 }
 
@@ -224,9 +227,8 @@ std::string CLI::find_home()
     }
 
     if (output.empty()) {
-        opentxs::otErr << __FUNCTION__
-                       << ": Unable to determine the home directory."
-                       << std::endl;
+        LogOutput(__FUNCTION__)(": Unable to determine the home directory.")
+            .Flush();
     }
 #endif
 
@@ -313,14 +315,14 @@ void CLI::parse_command(
 
 void CLI::print_basic_info(const proto::RPCPush& in)
 {
-    otErr << " * Received RPC push notification for " << in.id() << "\n"
-          << std::endl;
+    LogOutput(" * Received RPC push notification for ")(in.id()).Flush();
 }
 
 void CLI::print_basic_info(const proto::RPCResponse& in)
 {
-    otErr << " * Received RPC reply type: " << get_command_name(in.type())
-          << "\n   Status: " << get_status_name(in.success()) << std::endl;
+    LogOutput(" * Received RPC reply type: ")(get_command_name(in.type()))
+        .Flush();
+    LogOutput("   Status: ")(get_status_name(in.success())).Flush();
 }
 
 void CLI::process_push(network::zeromq::Message& in)
@@ -330,7 +332,7 @@ void CLI::process_push(network::zeromq::Message& in)
         proto::RawToProto<proto::RPCPush>(frame.data(), frame.size());
 
     if (false == proto::Validate(response, SILENT)) {
-        otErr << __FUNCTION__ << ": Invalid RPCPush." << std::endl;
+        LogOutput(__FUNCTION__)(": Invalid RPCPush.").Flush();
 
         return;
     }
@@ -339,8 +341,8 @@ void CLI::process_push(network::zeromq::Message& in)
         auto& handler = *push_handlers_.at(response.type());
         handler(response);
     } catch (...) {
-        otErr << __FUNCTION__ << ": Unhandled response type: "
-              << std::to_string(response.type()) << std::endl;
+        LogOutput(__FUNCTION__)(": Unhandled response type: ")(response.type())
+            .Flush();
     }
 }
 
@@ -351,7 +353,7 @@ void CLI::process_reply(network::zeromq::Message& in)
         proto::RawToProto<proto::RPCResponse>(frame.data(), frame.size());
 
     if (false == proto::Validate(response, SILENT)) {
-        otErr << __FUNCTION__ << ": Invalid RPCResponse." << std::endl;
+        LogOutput(__FUNCTION__)(": Invalid RPCResponse.").Flush();
 
         return;
     }
@@ -360,15 +362,69 @@ void CLI::process_reply(network::zeromq::Message& in)
         auto& handler = *response_handlers_.at(response.type());
         handler(response);
     } catch (...) {
-        otErr << __FUNCTION__ << ": Unhandled response type: "
-              << std::to_string(response.type()) << std::endl;
+        LogOutput(__FUNCTION__)(": Unhandled response type: ")(response.type())
+            .Flush();
     }
+}
+
+void CLI::register_nym(
+    const std::string& in,
+    const network::zeromq::DealerSocket& socket)
+{
+    int instance{-1};
+    std::string nymID{""};
+    std::string serverID{""};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance));
+    options.add_options()("nym", po::value<std::string>(&nymID));
+    options.add_options()("server", po::value<std::string>(&serverID));
+    parse_command(in, options);
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    if (nymID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing nym id option").Flush();
+
+        return;
+    }
+
+    if (serverID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing server id option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_REGISTERNYM);
+    out.set_session(instance);
+    out.set_nym(nymID);
+    out.set_owner(nymID);
+    out.set_notary(serverID);
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::register_nym_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
 }
 
 int CLI::Run()
 {
     std::string input{};
-    otErr << "otctl shell mode activated" << std::endl;
+    LogOutput("otctl shell mode activated").Flush();
 
     while (true) {
         std::getline(std::cin, input);
@@ -384,11 +440,25 @@ int CLI::Run()
             const auto& processor = *processors_.at(command);
             processor(input, socket_);
         } catch (...) {
-            otErr << "Unknown command" << std::endl;
+            LogOutput("Unknown command").Flush();
         }
     }
 
     return 0;
+}
+
+bool CLI::send_message(
+    const network::zeromq::DealerSocket& socket,
+    const proto::RPCCommand command)
+{
+    auto message = opentxs::network::zeromq::Message::Factory();
+    message->AddFrame();
+    message->AddFrame(proto::ProtoAsData(command));
+
+    OT_ASSERT(0 == message->Header().size());
+    OT_ASSERT(1 == message->Body().size());
+
+    return socket.Send(message);
 }
 
 void CLI::set_keys(network::zeromq::DealerSocket& socket)
@@ -407,9 +477,8 @@ void CLI::task_complete_push(const proto::RPCPush& in)
 {
     print_basic_info(in);
     const auto& task = in.taskcomplete();
-    otErr << "   Type: TASK" << std::endl;
-    otErr << "   ID: " << task.id() << std::endl;
-    otErr << "   Result: " << ((task.result()) ? "success" : "failure")
-          << std::endl;
+    LogOutput("   Type: TASK").Flush();
+    LogOutput("   ID: ")(task.id()).Flush();
+    LogOutput("   Result: ")(((task.result()) ? "success" : "failure")).Flush();
 }
 }  // namespace opentxs::otctl
