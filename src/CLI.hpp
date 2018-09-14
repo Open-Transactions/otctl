@@ -19,7 +19,7 @@ namespace opentxs::otctl
 class CLI
 {
 public:
-    CLI(const api::Native& ot);
+    CLI(const api::Native& ot, const po::variables_map& options);
 
     int Run();
 
@@ -40,6 +40,7 @@ private:
     static const std::map<proto::RPCResponseCode, std::string> status_names_;
 
     const api::Native& ot_;
+    const po::variables_map& options_;
     const std::string endpoint_;
     OTZMQListenCallback callback_;
     OTZMQDealerSocket socket_;
@@ -60,8 +61,8 @@ private:
 
     static std::string find_home();
     static std::string get_command_name(const proto::RPCCommandType type);
-    static std::string get_json();
-    static std::string get_socket_path();
+    static std::string get_json(const po::variables_map& cli);
+    static std::string get_socket_path(const po::variables_map& cli);
     static std::string get_status_name(const proto::RPCResponseCode code);
     static void parse_command(
         const std::string& input,
@@ -73,7 +74,9 @@ private:
     static bool send_message(
         const network::zeromq::DealerSocket& socket,
         const proto::RPCCommand command);
-    static void set_keys(network::zeromq::DealerSocket& socket);
+    static void set_keys(
+        const po::variables_map& cli,
+        network::zeromq::DealerSocket& socket);
     static void task_complete_push(const proto::RPCPush& in);
 
     void callback(network::zeromq::Message& in);

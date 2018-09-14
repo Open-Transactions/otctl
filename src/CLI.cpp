@@ -90,16 +90,17 @@ const std::map<proto::RPCResponseCode, std::string> CLI::status_names_{
     {proto::RPCRESPONSE_ERROR, "ERROR"},
 };
 
-CLI::CLI(const api::Native& ot)
+CLI::CLI(const api::Native& ot, const po::variables_map& options)
     : ot_(ot)
-    , endpoint_(get_socket_path())
+    , options_(options)
+    , endpoint_(get_socket_path(options_))
     , callback_(network::zeromq::ListenCallback::Factory(
           std::bind(&CLI::callback, this, std::placeholders::_1)))
     , socket_(ot.ZMQ().DealerSocket(callback_, true))
 {
     OT_ASSERT(false == endpoint_.empty());
 
-    set_keys(socket_);
+    set_keys(options_, socket_);
     const auto connected = socket_->Start(endpoint_);
 
     OT_ASSERT(connected);
@@ -244,9 +245,17 @@ std::string CLI::get_command_name(const proto::RPCCommandType type)
     }
 }
 
-std::string CLI::get_json()
+std::string CLI::get_json(const po::variables_map& cli)
 {
-    const auto filename = find_home() + "/otagent.key";
+    std::string filename{};
+    const auto& cliValue = cli["keyfile"];
+
+    if (cliValue.empty()) {
+        filename = find_home() + "/otagent.key";
+    } else {
+        filename = cli["keyfile"].as<std::string>();
+    }
+
     boost::system::error_code ec{};
 
     if (false == boost::filesystem::exists(filename, ec)) { return {}; }
@@ -270,27 +279,38 @@ std::string CLI::get_json()
     return {};
 }
 
-std::string CLI::get_socket_path()
+std::string CLI::get_socket_path(const po::variables_map& cli)
 {
-    std::string socket_path{"ipc://"};
-    const std::string uid = std::to_string(getuid());
-    std::string dir = "/run/user/" + uid;
-    fs::path path(dir);
-    fs::file_status status = fs::status(path);
+    std::string output{};
+    const auto& cliValue = cli["endpoint"];
 
-    if (0 != (status.permissions() & fs::owner_write)) {
-        socket_path += dir + "/otagent.sock";
-    } else {
-        dir = "/tmp/user/" + uid;
-        path = dir;
-        status = fs::status(path);
+    if (cliValue.empty()) {
+        std::string socket_path{"ipc://"};
+        const std::string uid = std::to_string(getuid());
+        std::string dir = "/run/user/" + uid;
+        fs::path path(dir);
+        fs::file_status status = fs::status(path);
 
         if (0 != (status.permissions() & fs::owner_write)) {
             socket_path += dir + "/otagent.sock";
+        } else {
+            dir = "/tmp/user/" + uid;
+            path = dir;
+            status = fs::status(path);
+
+            if (0 != (status.permissions() & fs::owner_write)) {
+                socket_path += dir + "/otagent.sock";
+            }
         }
+
+        output = socket_path;
+    } else {
+        output = cliValue.as<std::string>();
     }
 
-    return socket_path;
+    LogOutput("Connecting to ")(output).Flush();
+
+    return output;
 }
 
 std::string CLI::get_status_name(const proto::RPCResponseCode code)
@@ -461,9 +481,11 @@ bool CLI::send_message(
     return socket.Send(message);
 }
 
-void CLI::set_keys(network::zeromq::DealerSocket& socket)
+void CLI::set_keys(
+    const po::variables_map& cli,
+    network::zeromq::DealerSocket& socket)
 {
-    std::stringstream json(get_json());
+    std::stringstream json(get_json(cli));
     Json::Value root;
     json >> root;
     const auto main = root["otagent"];

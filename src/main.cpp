@@ -5,12 +5,33 @@
 
 #include <opentxs/opentxs.hpp>
 
+#include <boost/program_options.hpp>
+
 #include "CLI.hpp"
 
-int main(int, char**)
+namespace po = boost::program_options;
+
+int main(int argc, char** argv)
 {
+    auto options = po::options_description{"otctl"};
+    options.add_options()(
+        "keyfile",
+        po::value<std::string>(),
+        "Path to file containing endpoint keys.")(
+        "endpoint", po::value<std::string>(), "Remote zmq endpoint");
+    auto variables = po::variables_map{};
+
+    try {
+        po::store(po::parse_command_line(argc, argv, options), variables);
+        po::notify(variables);
+    } catch (const po::error& e) {
+        std::cerr << "ERROR: " << e.what() << "\n\n" << options << std::endl;
+
+        return 1;
+    }
+
     const auto& ot = opentxs::OT::Start({});
-    opentxs::otctl::CLI cli{ot};
+    opentxs::otctl::CLI cli{ot, variables};
     cli.Run();
     opentxs::OT::Cleanup();
 
