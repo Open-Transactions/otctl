@@ -48,6 +48,9 @@ private:
     static void add_client_session(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
+    static void add_server_session(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
     static void create_nym(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
@@ -55,7 +58,7 @@ private:
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
 
-    static void add_client_session_response(const proto::RPCResponse& in);
+    static void add_session_response(const proto::RPCResponse& in);
     static void create_nym_response(const proto::RPCResponse& in);
     static void register_nym_response(const proto::RPCResponse& in);
 

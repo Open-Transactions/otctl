@@ -18,6 +18,7 @@ extern "C" {
 
 namespace fs = boost::filesystem;
 
+#define API_ARG_VERSION 1
 #define RPC_COMMAND_VERSION 1
 #define CREATE_NYM_VERSION 1
 
@@ -25,6 +26,7 @@ namespace opentxs::otctl
 {
 const std::map<std::string, proto::RPCCommandType> CLI::commands_{
     {"addclient", proto::RPCCOMMAND_ADDCLIENTSESSION},
+    {"addserver", proto::RPCCOMMAND_ADDSERVERSESSION},
     {"createnym", proto::RPCCOMMAND_CREATENYM},
     {"registernym", proto::RPCCOMMAND_REGISTERNYM},
 };
@@ -33,12 +35,14 @@ const std::map<proto::RPCPushType, CLI::PushHandler> CLI::push_handlers_{
 };
 const std::map<proto::RPCCommandType, CLI::ResponseHandler>
     CLI::response_handlers_{
-        {proto::RPCCOMMAND_ADDCLIENTSESSION, &CLI::add_client_session_response},
+        {proto::RPCCOMMAND_ADDCLIENTSESSION, &CLI::add_session_response},
+        {proto::RPCCOMMAND_ADDSERVERSESSION, &CLI::add_session_response},
         {proto::RPCCOMMAND_CREATENYM, &CLI::create_nym_response},
         {proto::RPCCOMMAND_REGISTERNYM, &CLI::register_nym_response},
     };
 const std::map<proto::RPCCommandType, CLI::Processor> CLI::processors_{
     {proto::RPCCOMMAND_ADDCLIENTSESSION, &CLI::add_client_session},
+    {proto::RPCCOMMAND_ADDSERVERSESSION, &CLI::add_server_session},
     {proto::RPCCOMMAND_CREATENYM, &CLI::create_nym},
     {proto::RPCCOMMAND_REGISTERNYM, &CLI::register_nym},
 };
@@ -124,7 +128,61 @@ void CLI::add_client_session(
     OT_ASSERT(sent);
 }
 
-void CLI::add_client_session_response(const proto::RPCResponse& in)
+void CLI::add_server_session(
+    const std::string& in,
+    const network::zeromq::DealerSocket& socket)
+{
+    std::string ip{};
+    std::string onion{};
+    int port{-1};
+
+    po::options_description options("Options");
+    options.add_options()("ip", po::value<std::string>(&ip));
+    options.add_options()("port", po::value<int>(&port));
+    options.add_options()("onion", po::value<std::string>(&onion));
+    parse_command(in, options);
+
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_ADDSERVERSESSION);
+    out.set_session(-1);
+
+    if (0 < port) {
+        auto& arg1 = *out.add_arg();
+        arg1.set_version(API_ARG_VERSION);
+        arg1.set_key("commandport");
+        arg1.add_value(std::to_string(port));
+        auto& arg2 = *out.add_arg();
+        arg2.set_version(API_ARG_VERSION);
+        arg2.set_key("listencommand");
+        arg2.add_value(std::to_string(port));
+    }
+
+    if (false == ip.empty()) {
+        auto& arg = *out.add_arg();
+        arg.set_version(API_ARG_VERSION);
+        arg.set_key("externalip");
+        arg.add_value(ip);
+    }
+
+    if (false == onion.empty()) {
+        auto& arg = *out.add_arg();
+        arg.set_version(API_ARG_VERSION);
+        arg.set_key("onion");
+        arg.add_value(onion);
+    }
+
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::add_session_response(const proto::RPCResponse& in)
 {
     print_basic_info(in);
     LogOutput("   Session: ")(in.session()).Flush();
