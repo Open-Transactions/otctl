@@ -29,6 +29,8 @@ const std::map<std::string, proto::RPCCommandType> CLI::commands_{
     {"addclient", proto::RPCCOMMAND_ADDCLIENTSESSION},
     {"addserver", proto::RPCCOMMAND_ADDSERVERSESSION},
     {"createnym", proto::RPCCOMMAND_CREATENYM},
+    {"listclientsessions", proto::RPCCOMMAND_LISTCLIENTSSESSIONS},
+    {"listserversessions", proto::RPCCOMMAND_LISTSERVERSSESSIONS},
     {"registernym", proto::RPCCOMMAND_REGISTERNYM},
 };
 const std::map<proto::RPCPushType, CLI::PushHandler> CLI::push_handlers_{
@@ -39,12 +41,16 @@ const std::map<proto::RPCCommandType, CLI::ResponseHandler>
         {proto::RPCCOMMAND_ADDCLIENTSESSION, &CLI::add_session_response},
         {proto::RPCCOMMAND_ADDSERVERSESSION, &CLI::add_session_response},
         {proto::RPCCOMMAND_CREATENYM, &CLI::create_nym_response},
+        {proto::RPCCOMMAND_LISTCLIENTSSESSIONS, &CLI::list_session_response},
+        {proto::RPCCOMMAND_LISTSERVERSSESSIONS, &CLI::list_session_response},
         {proto::RPCCOMMAND_REGISTERNYM, &CLI::register_nym_response},
     };
 const std::map<proto::RPCCommandType, CLI::Processor> CLI::processors_{
     {proto::RPCCOMMAND_ADDCLIENTSESSION, &CLI::add_client_session},
     {proto::RPCCOMMAND_ADDSERVERSESSION, &CLI::add_server_session},
     {proto::RPCCOMMAND_CREATENYM, &CLI::create_nym},
+    {proto::RPCCOMMAND_LISTCLIENTSSESSIONS, &CLI::list_client_sessions},
+    {proto::RPCCOMMAND_LISTSERVERSSESSIONS, &CLI::list_server_sessions},
     {proto::RPCCOMMAND_REGISTERNYM, &CLI::register_nym},
 };
 
@@ -376,6 +382,51 @@ std::string CLI::get_status_name(const proto::RPCResponseCode code)
         return status_names_.at(code);
     } catch (...) {
         return std::to_string(code);
+    }
+}
+
+void CLI::list_client_sessions(
+    const std::string& in,
+    const zmq::DealerSocket& socket)
+{
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_LISTCLIENTSSESSIONS);
+    out.set_session(-1);
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::list_server_sessions(
+    const std::string& in,
+    const zmq::DealerSocket& socket)
+{
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_LISTSERVERSSESSIONS);
+    out.set_session(-1);
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::list_session_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
+
+    for (const auto& session : in.sessions()) {
+        LogOutput("   Instance: ")(session.instance()).Flush();
     }
 }
 
