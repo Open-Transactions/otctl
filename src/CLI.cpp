@@ -17,6 +17,7 @@ extern "C" {
 }
 
 namespace fs = boost::filesystem;
+namespace zmq = opentxs::network::zeromq;
 
 #define API_ARG_VERSION 1
 #define RPC_COMMAND_VERSION 1
@@ -98,9 +99,9 @@ CLI::CLI(const api::Native& ot, const po::variables_map& options)
     : ot_(ot)
     , options_(options)
     , endpoint_(get_socket_path(options_))
-    , callback_(network::zeromq::ListenCallback::Factory(
+    , callback_(zmq::ListenCallback::Factory(
           std::bind(&CLI::callback, this, std::placeholders::_1)))
-    , socket_(ot.ZMQ().DealerSocket(callback_, true))
+    , socket_(ot.ZMQ().DealerSocket(callback_, zmq::Socket::Direction::Connect))
 {
     OT_ASSERT(false == endpoint_.empty());
 
@@ -112,7 +113,7 @@ CLI::CLI(const api::Native& ot, const po::variables_map& options)
 
 void CLI::add_client_session(
     const std::string& in,
-    const network::zeromq::DealerSocket& socket)
+    const zmq::DealerSocket& socket)
 {
     proto::RPCCommand out{};
     out.set_version(RPC_COMMAND_VERSION);
@@ -130,7 +131,7 @@ void CLI::add_client_session(
 
 void CLI::add_server_session(
     const std::string& in,
-    const network::zeromq::DealerSocket& socket)
+    const zmq::DealerSocket& socket)
 {
     std::string ip{};
     std::string onion{};
@@ -188,7 +189,7 @@ void CLI::add_session_response(const proto::RPCResponse& in)
     LogOutput("   Session: ")(in.session()).Flush();
 }
 
-void CLI::callback(network::zeromq::Message& in)
+void CLI::callback(zmq::Message& in)
 {
     const auto size = in.Body().size();
 
@@ -207,9 +208,7 @@ void CLI::callback(network::zeromq::Message& in)
     }
 }
 
-void CLI::create_nym(
-    const std::string& in,
-    const network::zeromq::DealerSocket& socket)
+void CLI::create_nym(const std::string& in, const zmq::DealerSocket& socket)
 {
     int instance{-1};
     int type{proto::CITEMTYPE_INDIVIDUAL};
@@ -403,7 +402,7 @@ void CLI::print_basic_info(const proto::RPCResponse& in)
     LogOutput("   Status: ")(get_status_name(in.success())).Flush();
 }
 
-void CLI::process_push(network::zeromq::Message& in)
+void CLI::process_push(zmq::Message& in)
 {
     const auto& frame = in.Body_at(1);
     const auto response =
@@ -424,7 +423,7 @@ void CLI::process_push(network::zeromq::Message& in)
     }
 }
 
-void CLI::process_reply(network::zeromq::Message& in)
+void CLI::process_reply(zmq::Message& in)
 {
     const auto& frame = in.Body_at(0);
     const auto response =
@@ -445,9 +444,7 @@ void CLI::process_reply(network::zeromq::Message& in)
     }
 }
 
-void CLI::register_nym(
-    const std::string& in,
-    const network::zeromq::DealerSocket& socket)
+void CLI::register_nym(const std::string& in, const zmq::DealerSocket& socket)
 {
     int instance{-1};
     std::string nymID{""};
@@ -526,10 +523,10 @@ int CLI::Run()
 }
 
 bool CLI::send_message(
-    const network::zeromq::DealerSocket& socket,
+    const zmq::DealerSocket& socket,
     const proto::RPCCommand command)
 {
-    auto message = opentxs::network::zeromq::Message::Factory();
+    auto message = zmq::Message::Factory();
     message->AddFrame();
     message->AddFrame(proto::ProtoAsData(command));
 
@@ -539,9 +536,7 @@ bool CLI::send_message(
     return socket.Send(message);
 }
 
-void CLI::set_keys(
-    const po::variables_map& cli,
-    network::zeromq::DealerSocket& socket)
+void CLI::set_keys(const po::variables_map& cli, zmq::DealerSocket& socket)
 {
     std::stringstream json(get_json(cli));
     Json::Value root;
