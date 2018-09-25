@@ -51,10 +51,40 @@ private:
     static void add_server_session(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
+    static void create_account(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
     static void create_nym(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
+    static void create_unit_definition(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
+    static void get_account_activity(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
+    static void get_account_balance(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
+    static void get_server_contract(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
+    static void import_server_contract(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
+    static void issue_unit_definition(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
+    static void list_accounts(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
     static void list_client_sessions(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
+    static void list_contacts(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
+    static void list_nyms(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
     static void list_server_contracts(
@@ -63,15 +93,37 @@ private:
     static void list_server_sessions(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
+    static void list_unit_definitions(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
+    static void move_funds(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
     static void register_nym(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
+    static void send_payment(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
 
     static void add_session_response(const proto::RPCResponse& in);
+    static void create_account_response(const proto::RPCResponse& in);
     static void create_nym_response(const proto::RPCResponse& in);
+    static void create_unit_definition_response(const proto::RPCResponse& in);
+    static void get_account_activity_response(const proto::RPCResponse& in);
+    static void get_account_balance_response(const proto::RPCResponse& in);
+    static void get_server_contract_response(const proto::RPCResponse& in);
+    static void import_server_contract_response(const proto::RPCResponse& in);
+    static void issue_unit_definition_response(const proto::RPCResponse& in);
+    static void list_accounts_response(const proto::RPCResponse& in);
+    static void list_contacts_response(const proto::RPCResponse& in);
+    static void list_nyms_response(const proto::RPCResponse& in);
     static void list_servers_response(const proto::RPCResponse& in);
     static void list_session_response(const proto::RPCResponse& in);
+    static void list_unit_definitions_response(const proto::RPCResponse& in);
+    static void move_funds_response(const proto::RPCResponse& in);
     static void register_nym_response(const proto::RPCResponse& in);
+    static void send_payment_response(const proto::RPCResponse& in);
 
     static std::string find_home();
     static std::string get_command_name(const proto::RPCCommandType type);

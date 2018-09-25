@@ -22,17 +22,32 @@ namespace zmq = opentxs::network::zeromq;
 #define API_ARG_VERSION 1
 #define RPC_COMMAND_VERSION 1
 #define CREATE_NYM_VERSION 1
+#define CREATE_UNITDEFINITION_VERSION 1
+#define SENDPAYMENT_VERSION 1
 
 namespace opentxs::otctl
 {
 const std::map<std::string, proto::RPCCommandType> CLI::commands_{
     {"addclient", proto::RPCCOMMAND_ADDCLIENTSESSION},
     {"addserver", proto::RPCCOMMAND_ADDSERVERSESSION},
+    {"createaccount", proto::RPCCOMMAND_CREATEACCOUNT},
     {"createnym", proto::RPCCOMMAND_CREATENYM},
+    {"createunitdefinition", proto::RPCCOMMAND_CREATEUNITDEFINITION},
+    {"getaccountactivity", proto::RPCCOMMAND_GETACCOUNTACTIVITY},
+    {"getaccountbalance", proto::RPCCOMMAND_GETACCOUNTBALANCE},
+    {"getserver", proto::RPCCOMMAND_GETSERVERCONTRACT},
+    {"importserver", proto::RPCCOMMAND_IMPORTSERVERCONTRACT},
+    {"issueunitdefinition", proto::RPCCOMMAND_ISSUEUNITDEFINITION},
+    {"listaccounts", proto::RPCCOMMAND_LISTACCOUNTS},
     {"listclientsessions", proto::RPCCOMMAND_LISTCLIENTSESSIONS},
+    {"listcontacts", proto::RPCCOMMAND_LISTCONTACTS},
+    {"listnyms", proto::RPCCOMMAND_LISTNYMS},
     {"listservers", proto::RPCCOMMAND_LISTSERVERCONTRACTS},
     {"listserversessions", proto::RPCCOMMAND_LISTSERVERSESSIONS},
+    {"listunitdefinitions", proto::RPCCOMMAND_LISTUNITDEFINITIONS},
+    {"movefunds", proto::RPCCOMMAND_MOVEFUNDS},
     {"registernym", proto::RPCCOMMAND_REGISTERNYM},
+    {"sendcheque", proto::RPCCOMMAND_SENDPAYMENT},
 };
 const std::map<proto::RPCPushType, CLI::PushHandler> CLI::push_handlers_{
     {proto::RPCPUSH_TASK, &CLI::task_complete_push},
@@ -41,20 +56,53 @@ const std::map<proto::RPCCommandType, CLI::ResponseHandler>
     CLI::response_handlers_{
         {proto::RPCCOMMAND_ADDCLIENTSESSION, &CLI::add_session_response},
         {proto::RPCCOMMAND_ADDSERVERSESSION, &CLI::add_session_response},
+        {proto::RPCCOMMAND_CREATEACCOUNT, &CLI::create_account_response},
         {proto::RPCCOMMAND_CREATENYM, &CLI::create_nym_response},
+        {proto::RPCCOMMAND_CREATEUNITDEFINITION,
+         &CLI::create_unit_definition_response},
+        {proto::RPCCOMMAND_GETACCOUNTACTIVITY,
+         &CLI::get_account_activity_response},
+        {proto::RPCCOMMAND_GETACCOUNTBALANCE,
+         &CLI::get_account_balance_response},
+        {proto::RPCCOMMAND_GETSERVERCONTRACT,
+         &CLI::get_server_contract_response},
+        {proto::RPCCOMMAND_IMPORTSERVERCONTRACT,
+         &CLI::import_server_contract_response},
+        {proto::RPCCOMMAND_ISSUEUNITDEFINITION,
+         &CLI::issue_unit_definition_response},
+        {proto::RPCCOMMAND_LISTACCOUNTS, &CLI::list_accounts_response},
         {proto::RPCCOMMAND_LISTCLIENTSESSIONS, &CLI::list_session_response},
+        {proto::RPCCOMMAND_LISTCONTACTS, &CLI::list_contacts_response},
+        {proto::RPCCOMMAND_LISTNYMS, &CLI::list_nyms_response},
         {proto::RPCCOMMAND_LISTSERVERCONTRACTS, &CLI::list_servers_response},
         {proto::RPCCOMMAND_LISTSERVERSESSIONS, &CLI::list_session_response},
+        {proto::RPCCOMMAND_LISTUNITDEFINITIONS,
+         &CLI::list_unit_definitions_response},
+        {proto::RPCCOMMAND_MOVEFUNDS, &CLI::move_funds_response},
         {proto::RPCCOMMAND_REGISTERNYM, &CLI::register_nym_response},
+        {proto::RPCCOMMAND_SENDPAYMENT, &CLI::send_payment_response},
     };
 const std::map<proto::RPCCommandType, CLI::Processor> CLI::processors_{
     {proto::RPCCOMMAND_ADDCLIENTSESSION, &CLI::add_client_session},
     {proto::RPCCOMMAND_ADDSERVERSESSION, &CLI::add_server_session},
+    {proto::RPCCOMMAND_CREATEACCOUNT, &CLI::create_account},
     {proto::RPCCOMMAND_CREATENYM, &CLI::create_nym},
+    {proto::RPCCOMMAND_CREATEUNITDEFINITION, &CLI::create_unit_definition},
+    {proto::RPCCOMMAND_GETACCOUNTACTIVITY, &CLI::get_account_activity},
+    {proto::RPCCOMMAND_GETACCOUNTBALANCE, &CLI::get_account_balance},
+    {proto::RPCCOMMAND_GETSERVERCONTRACT, &CLI::get_server_contract},
+    {proto::RPCCOMMAND_IMPORTSERVERCONTRACT, &CLI::import_server_contract},
+    {proto::RPCCOMMAND_ISSUEUNITDEFINITION, &CLI::issue_unit_definition},
+    {proto::RPCCOMMAND_LISTACCOUNTS, &CLI::list_accounts},
     {proto::RPCCOMMAND_LISTCLIENTSESSIONS, &CLI::list_client_sessions},
+    {proto::RPCCOMMAND_LISTCONTACTS, &CLI::list_contacts},
+    {proto::RPCCOMMAND_LISTNYMS, &CLI::list_nyms},
     {proto::RPCCOMMAND_LISTSERVERCONTRACTS, &CLI::list_server_contracts},
     {proto::RPCCOMMAND_LISTSERVERSESSIONS, &CLI::list_server_sessions},
+    {proto::RPCCOMMAND_LISTUNITDEFINITIONS, &CLI::list_unit_definitions},
+    {proto::RPCCOMMAND_MOVEFUNDS, &CLI::move_funds},
     {proto::RPCCOMMAND_REGISTERNYM, &CLI::register_nym},
+    {proto::RPCCOMMAND_SENDPAYMENT, &CLI::send_payment},
 };
 
 const std::map<proto::RPCCommandType, std::string> CLI::command_names_{
@@ -72,6 +120,7 @@ const std::map<proto::RPCCommandType, std::string> CLI::command_names_{
     {proto::RPCCOMMAND_DELETECLAIM, "DELETECLAIM"},
     {proto::RPCCOMMAND_IMPORTSERVERCONTRACT, "IMPORTSERVERCONTRACT"},
     {proto::RPCCOMMAND_LISTSERVERCONTRACTS, "LISTSERVERCONTRACTS"},
+    {proto::RPCCOMMAND_GETSERVERCONTRACT, "GETSERVERCONTRACT"},
     {proto::RPCCOMMAND_REGISTERNYM, "REGISTERNYM"},
     {proto::RPCCOMMAND_CREATEUNITDEFINITION, "CREATEUNITDEFINITION"},
     {proto::RPCCOMMAND_LISTUNITDEFINITIONS, "LISTUNITDEFINITIONS"},
@@ -101,6 +150,8 @@ const std::map<proto::RPCResponseCode, std::string> CLI::status_names_{
     {proto::RPCRESPONSE_PARTIAL, "PARTIAL"},
     {proto::RPCRESPONSE_QUEUED, "QUEUED"},
     {proto::RPCRESPONSE_UNNECESSARY, "UNNECESSARY"},
+    {proto::RPCRESPONSE_RETRY, "RETRY"},
+    {proto::RPCRESPONSE_NO_PATH_TO_RECIPIENT, "NO_PATH_TO_RECIPIENT"},
     {proto::RPCRESPONSE_ERROR, "ERROR"},
 };
 
@@ -217,6 +268,72 @@ void CLI::callback(zmq::Message& in)
     }
 }
 
+void CLI::create_account(const std::string& in, const zmq::DealerSocket& socket)
+{
+    int instance{-1};
+    std::string owner{""};
+    std::string notary{""};
+    std::string unitDefinition{""};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance));
+    options.add_options()("owner", po::value<std::string>(&owner));
+    options.add_options()("notary", po::value<std::string>(&notary));
+    options.add_options()(
+        "unitdefinition", po::value<std::string>(&unitDefinition));
+    parse_command(in, options);
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    if (owner.empty()) {
+        LogOutput(__FUNCTION__)(": Missing owner option").Flush();
+
+        return;
+    }
+
+    if (notary.empty()) {
+        LogOutput(__FUNCTION__)(": Missing notary option").Flush();
+
+        return;
+    }
+
+    if (unitDefinition.empty()) {
+        LogOutput(__FUNCTION__)(": Missing unitdefinition option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand command{};
+    command.set_version(RPC_COMMAND_VERSION);
+    command.set_cookie(Identifier::Random()->str());
+    command.set_type(proto::RPCCOMMAND_CREATEACCOUNT);
+    command.set_session(instance);
+    command.set_owner(owner);
+    command.set_notary(notary);
+    command.set_unit(unitDefinition);
+
+    const auto valid = proto::Validate(command, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, command);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::create_account_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
+
+    for (const auto& id : in.identifier()) {
+        LogOutput("   Account ID: ")(id).Flush();
+    }
+}
+
 void CLI::create_nym(const std::string& in, const zmq::DealerSocket& socket)
 {
     int instance{-1};
@@ -271,6 +388,133 @@ void CLI::create_nym_response(const proto::RPCResponse& in)
 
     for (const auto& id : in.identifier()) {
         LogOutput("   Nym ID: ")(id).Flush();
+    }
+}
+
+void CLI::create_unit_definition(
+    const std::string& in,
+    const zmq::DealerSocket& socket)
+{
+    int instance{-1};
+    std::string nymID{""};
+    std::string name{""};
+    std::string symbol{""};
+    std::string primaryUnitName{""};
+    std::string fractionalUnitName{""};
+    std::string tickerSymbol{""};
+    int power{-1};
+    std::string terms{""};
+    int unitOfAccount{proto::CITEMTYPE_UNKNOWN};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance));
+    options.add_options()("nym", po::value<std::string>(&nymID));
+    options.add_options()("name", po::value<std::string>(&name));
+    options.add_options()("symbol", po::value<std::string>(&symbol));
+    options.add_options()(
+        "primaryunitname", po::value<std::string>(&primaryUnitName));
+    options.add_options()(
+        "fractionalunitname", po::value<std::string>(&fractionalUnitName));
+    options.add_options()(
+        "tickersymbol", po::value<std::string>(&tickerSymbol));
+    options.add_options()("power", po::value<int>(&power));
+    options.add_options()("terms", po::value<std::string>(&terms));
+    options.add_options()("unitofaccount", po::value<int>(&unitOfAccount));
+    parse_command(in, options);
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    if (nymID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing nym option").Flush();
+
+        return;
+    }
+
+    if (name.empty()) {
+        LogOutput(__FUNCTION__)(": Missing name option").Flush();
+
+        return;
+    }
+
+    if (symbol.empty()) {
+        LogOutput(__FUNCTION__)(": Missing symbol option").Flush();
+
+        return;
+    }
+
+    if (primaryUnitName.empty()) {
+        LogOutput(__FUNCTION__)(": Missing primary unit name option").Flush();
+
+        return;
+    }
+
+    if (fractionalUnitName.empty()) {
+        LogOutput(__FUNCTION__)(": Missing fractional unit name option")
+            .Flush();
+
+        return;
+    }
+
+    if (tickerSymbol.empty()) {
+        LogOutput(__FUNCTION__)(": Missing ticker symbol option").Flush();
+
+        return;
+    }
+
+    if (-1 == power) {
+        LogOutput(__FUNCTION__)(": Missing power option").Flush();
+
+        return;
+    }
+
+    if (terms.empty()) {
+        LogOutput(__FUNCTION__)(": Missing terms option").Flush();
+
+        return;
+    }
+
+    if (proto::CITEMTYPE_UNKNOWN == unitOfAccount) {
+        LogOutput(__FUNCTION__)(": Missing unit of account option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_CREATEUNITDEFINITION);
+    out.set_session(instance);
+    out.set_owner(nymID);
+    auto& create = *out.mutable_createunit();
+    create.set_version(CREATE_UNITDEFINITION_VERSION);
+    create.set_name(name);
+    create.set_symbol(symbol);
+    create.set_primaryunitname(primaryUnitName);
+    create.set_fractionalunitname(fractionalUnitName);
+    create.set_tla(tickerSymbol);
+    create.set_power(power);
+    create.set_terms(terms);
+    create.set_unitofaccount(
+        static_cast<proto::ContactItemType>(unitOfAccount));
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::create_unit_definition_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
+
+    for (const auto& id : in.identifier()) {
+        LogOutput("   Unit Definition ID: ")(id).Flush();
     }
 }
 
@@ -345,6 +589,162 @@ std::string CLI::get_json(const po::variables_map& cli)
     return {};
 }
 
+void CLI::get_account_activity(
+    const std::string& in,
+    const zmq::DealerSocket& socket)
+{
+    int instance{-1};
+    std::string serverID{""};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance));
+    options.add_options()("server", po::value<std::string>(&serverID));
+    parse_command(in, options);
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    if (serverID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing server id option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_GETSERVERCONTRACT);
+    out.set_session(instance);
+    out.add_identifier(serverID);
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::get_account_activity_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
+
+    for (const auto& id : in.notary()) {
+        auto output = proto::ProtoAsArmored(id, "SERVER CONTRACT");
+
+        OT_ASSERT(!output->empty());
+
+        LogOutput("   Server Contract:\n")(output).Flush();
+    }
+}
+
+void CLI::get_account_balance(
+    const std::string& in,
+    const zmq::DealerSocket& socket)
+{
+    int instance{-1};
+    std::string serverID{""};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance));
+    options.add_options()("server", po::value<std::string>(&serverID));
+    parse_command(in, options);
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    if (serverID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing server id option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_GETSERVERCONTRACT);
+    out.set_session(instance);
+    out.add_identifier(serverID);
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::get_account_balance_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
+
+    for (const auto& id : in.notary()) {
+        auto output = proto::ProtoAsArmored(id, "SERVER CONTRACT");
+
+        OT_ASSERT(!output->empty());
+
+        LogOutput("   Server Contract:\n")(output).Flush();
+    }
+}
+
+void CLI::get_server_contract(
+    const std::string& in,
+    const zmq::DealerSocket& socket)
+{
+    int instance{-1};
+    std::string serverID{""};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance));
+    options.add_options()("server", po::value<std::string>(&serverID));
+    parse_command(in, options);
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    if (serverID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing server id option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_GETSERVERCONTRACT);
+    out.set_session(instance);
+    out.add_identifier(serverID);
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::get_server_contract_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
+
+    for (const auto& id : in.notary()) {
+        auto output = proto::ProtoAsArmored(id, "SERVER CONTRACT");
+
+        OT_ASSERT(!output->empty());
+
+        LogOutput("   Server Contract:\n")(output).Flush();
+    }
+}
+
 std::string CLI::get_socket_path(const po::variables_map& cli)
 {
     std::string output{};
@@ -388,6 +788,161 @@ std::string CLI::get_status_name(const proto::RPCResponseCode code)
     }
 }
 
+void CLI::import_server_contract(
+    const std::string& in,
+    const zmq::DealerSocket& socket)
+{
+    int instance{-1};
+    std::string server_contract{""};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance));
+    parse_command(in, options);
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    LogOutput("Please paste a server contract,\n")(
+        "followed by an EOF or a ~ on a line by itself:\n")
+        .Flush();
+
+    std::string input = OT_CLI_ReadUntilEOF();
+    if ("" == input) {
+        LogOutput(__FUNCTION__)("Error: you did not paste a server contract.\n")
+            .Flush();
+        return;
+    }
+
+    proto::RPCCommand command{};
+    command.set_version(RPC_COMMAND_VERSION);
+    command.set_cookie(Identifier::Random()->str());
+    command.set_type(proto::RPCCOMMAND_IMPORTSERVERCONTRACT);
+    command.set_session(instance);
+    auto& server = *command.add_server();
+    server = proto::StringToProto<proto::ServerContract>(input.c_str());
+
+    const auto valid = proto::Validate(command, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, command);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::import_server_contract_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
+}
+
+void CLI::issue_unit_definition(
+    const std::string& in,
+    const zmq::DealerSocket& socket)
+{
+    int instance{-1};
+    std::string owner{""};
+    std::string notary{""};
+    std::string unitDefinition{""};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance));
+    options.add_options()("owner", po::value<std::string>(&owner));
+    options.add_options()("notary", po::value<std::string>(&notary));
+    options.add_options()(
+        "unitdefinition", po::value<std::string>(&unitDefinition));
+    parse_command(in, options);
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    if (owner.empty()) {
+        LogOutput(__FUNCTION__)(": Missing owner option").Flush();
+
+        return;
+    }
+
+    if (notary.empty()) {
+        LogOutput(__FUNCTION__)(": Missing notary option").Flush();
+
+        return;
+    }
+
+    if (unitDefinition.empty()) {
+        LogOutput(__FUNCTION__)(": Missing unitdefinition option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand command{};
+    command.set_version(RPC_COMMAND_VERSION);
+    command.set_cookie(Identifier::Random()->str());
+    command.set_type(proto::RPCCOMMAND_ISSUEUNITDEFINITION);
+    command.set_session(instance);
+    command.set_owner(owner);
+    command.set_notary(notary);
+    command.set_unit(unitDefinition);
+
+    const auto valid = proto::Validate(command, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, command);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::issue_unit_definition_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
+
+    for (const auto& id : in.identifier()) {
+        LogOutput("   Issuer account ID: ")(id).Flush();
+    }
+}
+
+void CLI::list_accounts(const std::string& in, const zmq::DealerSocket& socket)
+{
+    int instance{-1};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance));
+    parse_command(in, options);
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_LISTACCOUNTS);
+    out.set_session(instance);
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::list_accounts_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
+
+    for (const auto& id : in.identifier()) {
+        LogOutput("   Account ID: ")(id).Flush();
+    }
+}
+
 void CLI::list_client_sessions(
     const std::string& in,
     const zmq::DealerSocket& socket)
@@ -404,6 +959,82 @@ void CLI::list_client_sessions(
     const auto sent = send_message(socket, out);
 
     OT_ASSERT(sent);
+}
+
+void CLI::list_contacts(
+    const std::string& in,
+    const zmq::DealerSocket& socket)
+{
+    int instance{-1};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance));
+    parse_command(in, options);
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_LISTCONTACTS);
+    out.set_session(instance);
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::list_contacts_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
+
+    for (const auto& id : in.identifier()) {
+        LogOutput("   Contact ID: ")(id).Flush();
+    }
+}
+
+void CLI::list_nyms(const std::string& in, const zmq::DealerSocket& socket)
+{
+    int instance{-1};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance));
+    parse_command(in, options);
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_LISTNYMS);
+    out.set_session(instance);
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::list_nyms_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
+
+    for (const auto& id : in.identifier()) {
+        LogOutput("   Nym ID: ")(id).Flush();
+    }
 }
 
 void CLI::list_server_contracts(
@@ -471,6 +1102,97 @@ void CLI::list_session_response(const proto::RPCResponse& in)
     }
 }
 
+void CLI::list_unit_definitions(
+    const std::string& in,
+    const zmq::DealerSocket& socket)
+{
+    int instance{-1};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance));
+    parse_command(in, options);
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_LISTUNITDEFINITIONS);
+    out.set_session(instance);
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::list_unit_definitions_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
+
+    for (const auto& id : in.identifier()) {
+        LogOutput("   Unit definition: ")(id).Flush();
+    }
+}
+
+void CLI::move_funds(const std::string& in, const zmq::DealerSocket& socket)
+{
+    int instance{-1};
+    std::string nymID{""};
+    std::string serverID{""};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance));
+    options.add_options()("nym", po::value<std::string>(&nymID));
+    options.add_options()("server", po::value<std::string>(&serverID));
+    parse_command(in, options);
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    if (nymID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing nym id option").Flush();
+
+        return;
+    }
+
+    if (serverID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing server id option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_REGISTERNYM);
+    out.set_session(instance);
+    out.set_nym(nymID);
+    out.set_owner(nymID);
+    out.set_notary(serverID);
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::move_funds_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
+}
+
 void CLI::parse_command(
     const std::string& input,
     po::options_description& options)
@@ -504,7 +1226,7 @@ void CLI::process_push(zmq::Message& in)
     const auto response =
         proto::RawToProto<proto::RPCPush>(frame.data(), frame.size());
 
-    if (false == proto::Validate(response, SILENT)) {
+    if (false == proto::Validate(response, VERBOSE)) {
         LogOutput(__FUNCTION__)(": Invalid RPCPush.").Flush();
 
         return;
@@ -610,6 +1332,8 @@ int CLI::Run()
             const auto command = commands_.at(first);
             const auto& processor = *processors_.at(command);
             processor(input, socket_);
+        } catch (po::error& err) {
+            LogOutput("Error processing command: ")(err.what()).Flush();
         } catch (...) {
             LogOutput("Unknown command").Flush();
         }
@@ -630,6 +1354,76 @@ bool CLI::send_message(
     OT_ASSERT(1 == message->Body().size());
 
     return socket.Send(message);
+}
+
+// Invokes RPCCOMMAND_SENDPAYMENT for transaction type RPCPAYMENTTYPE_CHEQUE
+// only.
+void CLI::send_payment(const std::string& in, const zmq::DealerSocket& socket)
+{
+    int instance{-1};
+    std::string contactID{""};
+    std::string sourceAccountID{""};
+    std::string memo{""};
+    int amount{-1};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance));
+    options.add_options()("contact", po::value<std::string>(&contactID));
+    options.add_options()(
+        "sourceaccount", po::value<std::string>(&sourceAccountID));
+    options.add_options()("memo", po::value<std::string>(&memo));
+    options.add_options()("amount", po::value<int>(&amount));
+    parse_command(in, options);
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    if (contactID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing contactid option").Flush();
+
+        return;
+    }
+
+    if (sourceAccountID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing sourceaccountid option").Flush();
+
+        return;
+    }
+
+    if (-1 == amount) {
+        LogOutput(__FUNCTION__)(": Missing amount option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_SENDPAYMENT);
+
+    auto& sendpayment = *out.mutable_sendpayment();
+    sendpayment.set_version(SENDPAYMENT_VERSION);
+    sendpayment.set_type(proto::RPCPAYMENTTYPE_CHEQUE);
+    sendpayment.set_contact(contactID);
+    sendpayment.set_sourceaccount(sourceAccountID);
+    if (!memo.empty()) { sendpayment.set_memo(memo); }
+    sendpayment.set_amount(amount);
+
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::send_payment_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
 }
 
 void CLI::set_keys(const po::variables_map& cli, zmq::DealerSocket& socket)
