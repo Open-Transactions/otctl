@@ -492,6 +492,10 @@ void CLI::print_basic_info(const proto::RPCResponse& in)
     LogOutput(" * Received RPC reply type: ")(get_command_name(in.type()))
         .Flush();
     LogOutput("   Status: ")(get_status_name(in.success())).Flush();
+
+    if (proto::RPCRESPONSE_QUEUED == in.success()) {
+        LogOutput("   Task ID: ")(in.task()).Flush();
+    }
 }
 
 void CLI::process_push(zmq::Message& in)
