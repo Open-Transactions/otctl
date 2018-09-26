@@ -38,6 +38,8 @@ private:
     static const std::map<proto::RPCCommandType, Processor> processors_;
     static const std::map<proto::RPCCommandType, std::string> command_names_;
     static const std::map<proto::RPCResponseCode, std::string> status_names_;
+    static const std::map<proto::AccountEventType, std::string>
+        account_push_names_;
 
     const api::Native& ot_;
     const po::variables_map& options_;
@@ -125,7 +127,10 @@ private:
     static void register_nym_response(const proto::RPCResponse& in);
     static void send_payment_response(const proto::RPCResponse& in);
 
+    static void account_event_push(const proto::RPCPush& in);
     static std::string find_home();
+    static std::string get_account_push_name(
+        const proto::AccountEventType type);
     static std::string get_command_name(const proto::RPCCommandType type);
     static std::string get_json(const po::variables_map& cli);
     static std::string get_socket_path(const po::variables_map& cli);

@@ -50,6 +50,7 @@ const std::map<std::string, proto::RPCCommandType> CLI::commands_{
     {"sendcheque", proto::RPCCOMMAND_SENDPAYMENT},
 };
 const std::map<proto::RPCPushType, CLI::PushHandler> CLI::push_handlers_{
+    {proto::RPCPUSH_ACCOUNT, &CLI::account_event_push},
     {proto::RPCPUSH_TASK, &CLI::task_complete_push},
 };
 const std::map<proto::RPCCommandType, CLI::ResponseHandler>
@@ -155,6 +156,13 @@ const std::map<proto::RPCResponseCode, std::string> CLI::status_names_{
     {proto::RPCRESPONSE_ERROR, "ERROR"},
 };
 
+const std::map<proto::AccountEventType, std::string> CLI::account_push_names_{
+    {proto::ACCOUNTEVENT_INCOMINGCHEQUE, "INCOMING CHEQUE"},
+    {proto::ACCOUNTEVENT_OUTGOINGCHEQUE, "OUTGOING CHEQUE"},
+    {proto::ACCOUNTEVENT_INCOMINGTRANSFER, "INCOMING TRANSFER"},
+    {proto::ACCOUNTEVENT_OUTGOINGTRANSFER, "OUTGOING TRANSFER"},
+};
+
 CLI::CLI(const api::Native& ot, const po::variables_map& options)
     : ot_(ot)
     , options_(options)
@@ -169,6 +177,24 @@ CLI::CLI(const api::Native& ot, const po::variables_map& options)
     const auto connected = socket_->Start(endpoint_);
 
     OT_ASSERT(connected);
+}
+
+void CLI::account_event_push(const proto::RPCPush& in)
+{
+    print_basic_info(in);
+    const auto& event = in.accountevent();
+    std::stringstream time{};
+    time << std::time_t{event.timestamp()};
+
+    LogOutput("   Type: ACCOUNT").Flush();
+    LogOutput("   Account ID: ")(event.id()).Flush();
+    LogOutput("   Event type: ")(get_account_push_name(event.type())).Flush();
+    LogOutput("   Contact: ")(event.contact()).Flush();
+    LogOutput("   Transaction number: ")(event.number()).Flush();
+    LogOutput("   Finalized amount: ")(event.amount()).Flush();
+    LogOutput("   Pending amount: ")(event.pendingamount()).Flush();
+    LogOutput("   Timestamp: ")(time.str()).Flush();
+    LogOutput("   Memo: ")(event.memo()).Flush();
 }
 
 void CLI::add_client_session(
@@ -690,6 +716,15 @@ void CLI::get_account_balance_response(const proto::RPCResponse& in)
         OT_ASSERT(!output->empty());
 
         LogOutput("   Server Contract:\n")(output).Flush();
+    }
+}
+
+std::string CLI::get_account_push_name(const proto::AccountEventType type)
+{
+    try {
+        return account_push_names_.at(type);
+    } catch (...) {
+        return std::to_string(type);
     }
 }
 
