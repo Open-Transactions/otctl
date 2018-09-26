@@ -272,13 +272,13 @@ void CLI::create_account(const std::string& in, const zmq::DealerSocket& socket)
 {
     int instance{-1};
     std::string owner{""};
-    std::string notary{""};
+    std::string server{""};
     std::string unitDefinition{""};
 
     po::options_description options("Options");
     options.add_options()("instance", po::value<int>(&instance));
     options.add_options()("owner", po::value<std::string>(&owner));
-    options.add_options()("notary", po::value<std::string>(&notary));
+    options.add_options()("server", po::value<std::string>(&server));
     options.add_options()(
         "unitdefinition", po::value<std::string>(&unitDefinition));
     parse_command(in, options);
@@ -295,8 +295,8 @@ void CLI::create_account(const std::string& in, const zmq::DealerSocket& socket)
         return;
     }
 
-    if (notary.empty()) {
-        LogOutput(__FUNCTION__)(": Missing notary option").Flush();
+    if (server.empty()) {
+        LogOutput(__FUNCTION__)(": Missing server option").Flush();
 
         return;
     }
@@ -313,7 +313,7 @@ void CLI::create_account(const std::string& in, const zmq::DealerSocket& socket)
     command.set_type(proto::RPCCOMMAND_CREATEACCOUNT);
     command.set_session(instance);
     command.set_owner(owner);
-    command.set_notary(notary);
+    command.set_notary(server);
     command.set_unit(unitDefinition);
 
     const auto valid = proto::Validate(command, VERBOSE);
@@ -844,13 +844,13 @@ void CLI::issue_unit_definition(
 {
     int instance{-1};
     std::string owner{""};
-    std::string notary{""};
+    std::string server{""};
     std::string unitDefinition{""};
 
     po::options_description options("Options");
     options.add_options()("instance", po::value<int>(&instance));
     options.add_options()("owner", po::value<std::string>(&owner));
-    options.add_options()("notary", po::value<std::string>(&notary));
+    options.add_options()("server", po::value<std::string>(&server));
     options.add_options()(
         "unitdefinition", po::value<std::string>(&unitDefinition));
     parse_command(in, options);
@@ -867,7 +867,7 @@ void CLI::issue_unit_definition(
         return;
     }
 
-    if (notary.empty()) {
+    if (server.empty()) {
         LogOutput(__FUNCTION__)(": Missing notary option").Flush();
 
         return;
@@ -885,7 +885,7 @@ void CLI::issue_unit_definition(
     command.set_type(proto::RPCCOMMAND_ISSUEUNITDEFINITION);
     command.set_session(instance);
     command.set_owner(owner);
-    command.set_notary(notary);
+    command.set_notary(server);
     command.set_unit(unitDefinition);
 
     const auto valid = proto::Validate(command, VERBOSE);
@@ -961,9 +961,7 @@ void CLI::list_client_sessions(
     OT_ASSERT(sent);
 }
 
-void CLI::list_contacts(
-    const std::string& in,
-    const zmq::DealerSocket& socket)
+void CLI::list_contacts(const std::string& in, const zmq::DealerSocket& socket)
 {
     int instance{-1};
 
@@ -1375,7 +1373,7 @@ void CLI::send_payment(const std::string& in, const zmq::DealerSocket& socket)
     options.add_options()("amount", po::value<int>(&amount));
     parse_command(in, options);
 
-    if (-1 == instance) {
+    if (0 > instance) {
         LogOutput(__FUNCTION__)(": Missing instance option").Flush();
 
         return;
@@ -1393,7 +1391,7 @@ void CLI::send_payment(const std::string& in, const zmq::DealerSocket& socket)
         return;
     }
 
-    if (-1 == amount) {
+    if (0 >= amount) {
         LogOutput(__FUNCTION__)(": Missing amount option").Flush();
 
         return;
