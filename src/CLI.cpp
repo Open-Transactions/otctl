@@ -659,7 +659,8 @@ void CLI::get_account_activity_response(const proto::RPCResponse& in)
     print_basic_info(in);
 
     for (const auto& id : in.notary()) {
-        auto output = proto::ProtoAsArmored(id, "SERVER CONTRACT");
+        auto output =
+            proto::ProtoAsArmored(id, String::Factory("SERVER CONTRACT"));
 
         OT_ASSERT(!output->empty());
 
@@ -711,7 +712,8 @@ void CLI::get_account_balance_response(const proto::RPCResponse& in)
     print_basic_info(in);
 
     for (const auto& id : in.notary()) {
-        auto output = proto::ProtoAsArmored(id, "SERVER CONTRACT");
+        auto output =
+            proto::ProtoAsArmored(id, String::Factory("SERVER CONTRACT"));
 
         OT_ASSERT(!output->empty());
 
@@ -772,7 +774,8 @@ void CLI::get_server_contract_response(const proto::RPCResponse& in)
     print_basic_info(in);
 
     for (const auto& id : in.notary()) {
-        auto output = proto::ProtoAsArmored(id, "SERVER CONTRACT");
+        auto output =
+            proto::ProtoAsArmored(id, String::Factory("SERVER CONTRACT"));
 
         OT_ASSERT(!output->empty());
 
@@ -857,7 +860,8 @@ void CLI::import_server_contract(
     command.set_type(proto::RPCCOMMAND_IMPORTSERVERCONTRACT);
     command.set_session(instance);
     auto& server = *command.add_server();
-    server = proto::StringToProto<proto::ServerContract>(input.c_str());
+    server = proto::StringToProto<proto::ServerContract>(
+        String::Factory(input.c_str()));
 
     const auto valid = proto::Validate(command, VERBOSE);
 
