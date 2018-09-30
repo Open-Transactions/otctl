@@ -174,8 +174,9 @@ const std::map<proto::AccountEventType, std::string> CLI::account_push_names_{
 };
 
 CLI::CLI(const api::Native& ot, const po::variables_map& options)
-    : ot_(ot)
-    , options_(options)
+    :  // ot_(ot)
+    //,
+    options_(options)
     , endpoint_(get_socket_path(options_))
     , callback_(zmq::ListenCallback::Factory(
           std::bind(&CLI::callback, this, std::placeholders::_1)))
@@ -271,11 +272,6 @@ void CLI::accept_pending_payments(
 void CLI::accept_pending_payments_response(const proto::RPCResponse& in)
 {
     print_basic_info(in);
-
-    for (const auto& taskid : in.identifier()) {
-
-        LogOutput("   Accept Payment task id: ")(taskid).Flush();
-    }
 }
 
 void CLI::add_client_session(
@@ -707,7 +703,7 @@ std::string CLI::get_json(const po::variables_map& cli)
 
         if ((0 >= pos) || (0xFFFFFFFF <= pos)) { return {}; }
 
-        std::uint32_t size(pos);
+        std::uint64_t size(pos);
         file.seekg(0, std::ios::beg);
         std::vector<char> bytes(size);
         file.read(&bytes[0], size);
@@ -1476,12 +1472,12 @@ void CLI::print_basic_info(const proto::RPCResponse& in)
     LogOutput(" * Received RPC reply type: ")(get_command_name(in.type()))
         .Flush();
 
-    if (0 < in.status_size()) {
-        LogOutput("   Status: ")(get_status_name(in.status(0).code())).Flush();
+    for (auto status : in.status()) {
+        LogOutput("   Status: ")(get_status_name(status.code())).Flush();
 
-        if (proto::RPCRESPONSE_QUEUED == in.status(0).code() &&
-            0 < in.task_size()) {
-            LogOutput("   Task ID: ")(in.task(0).id()).Flush();
+        if (proto::RPCRESPONSE_QUEUED == status.code() &&
+            static_cast<int>(status.index()) < in.task_size()) {
+            LogOutput("   Task ID: ")(in.task(status.index()).id()).Flush();
         }
     }
 }

@@ -41,7 +41,7 @@ private:
     static const std::map<proto::AccountEventType, std::string>
         account_push_names_;
 
-    const api::Native& ot_;
+//    const api::Native& ot_;
     const po::variables_map& options_;
     const std::string endpoint_;
     OTZMQListenCallback callback_;
