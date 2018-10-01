@@ -24,10 +24,12 @@ namespace zmq = opentxs::network::zeromq;
 #define CREATE_NYM_VERSION 1
 #define CREATE_UNITDEFINITION_VERSION 1
 #define SENDPAYMENT_VERSION 1
+#define ACCEPTPENDINGPAYMENT_VERSION 1
 
 namespace opentxs::otctl
 {
 const std::map<std::string, proto::RPCCommandType> CLI::commands_{
+    {"acceptpendingpayments", proto::RPCCOMMAND_ACCEPTPENDINGPAYMENTS},
     {"addclient", proto::RPCCOMMAND_ADDCLIENTSESSION},
     {"addserver", proto::RPCCOMMAND_ADDSERVERSESSION},
     {"createaccount", proto::RPCCOMMAND_CREATEACCOUNT},
@@ -35,6 +37,7 @@ const std::map<std::string, proto::RPCCommandType> CLI::commands_{
     {"createunitdefinition", proto::RPCCOMMAND_CREATEUNITDEFINITION},
     {"getaccountactivity", proto::RPCCOMMAND_GETACCOUNTACTIVITY},
     {"getaccountbalance", proto::RPCCOMMAND_GETACCOUNTBALANCE},
+    {"getpendingpayments", proto::RPCCOMMAND_GETPENDINGPAYMENTS},
     {"getserver", proto::RPCCOMMAND_GETSERVERCONTRACT},
     {"importserver", proto::RPCCOMMAND_IMPORTSERVERCONTRACT},
     {"issueunitdefinition", proto::RPCCOMMAND_ISSUEUNITDEFINITION},
@@ -55,6 +58,8 @@ const std::map<proto::RPCPushType, CLI::PushHandler> CLI::push_handlers_{
 };
 const std::map<proto::RPCCommandType, CLI::ResponseHandler>
     CLI::response_handlers_{
+        {proto::RPCCOMMAND_ACCEPTPENDINGPAYMENTS,
+         &CLI::accept_pending_payments_response},
         {proto::RPCCOMMAND_ADDCLIENTSESSION, &CLI::add_session_response},
         {proto::RPCCOMMAND_ADDSERVERSESSION, &CLI::add_session_response},
         {proto::RPCCOMMAND_CREATEACCOUNT, &CLI::create_account_response},
@@ -65,6 +70,8 @@ const std::map<proto::RPCCommandType, CLI::ResponseHandler>
          &CLI::get_account_activity_response},
         {proto::RPCCOMMAND_GETACCOUNTBALANCE,
          &CLI::get_account_balance_response},
+        {proto::RPCCOMMAND_GETPENDINGPAYMENTS,
+         &CLI::get_pending_payments_response},
         {proto::RPCCOMMAND_GETSERVERCONTRACT,
          &CLI::get_server_contract_response},
         {proto::RPCCOMMAND_IMPORTSERVERCONTRACT,
@@ -84,6 +91,7 @@ const std::map<proto::RPCCommandType, CLI::ResponseHandler>
         {proto::RPCCOMMAND_SENDPAYMENT, &CLI::send_payment_response},
     };
 const std::map<proto::RPCCommandType, CLI::Processor> CLI::processors_{
+    {proto::RPCCOMMAND_ACCEPTPENDINGPAYMENTS, &CLI::accept_pending_payments},
     {proto::RPCCOMMAND_ADDCLIENTSESSION, &CLI::add_client_session},
     {proto::RPCCOMMAND_ADDSERVERSESSION, &CLI::add_server_session},
     {proto::RPCCOMMAND_CREATEACCOUNT, &CLI::create_account},
@@ -91,6 +99,7 @@ const std::map<proto::RPCCommandType, CLI::Processor> CLI::processors_{
     {proto::RPCCOMMAND_CREATEUNITDEFINITION, &CLI::create_unit_definition},
     {proto::RPCCOMMAND_GETACCOUNTACTIVITY, &CLI::get_account_activity},
     {proto::RPCCOMMAND_GETACCOUNTBALANCE, &CLI::get_account_balance},
+    {proto::RPCCOMMAND_GETPENDINGPAYMENTS, &CLI::get_pending_payments},
     {proto::RPCCOMMAND_GETSERVERCONTRACT, &CLI::get_server_contract},
     {proto::RPCCOMMAND_IMPORTSERVERCONTRACT, &CLI::import_server_contract},
     {proto::RPCCOMMAND_ISSUEUNITDEFINITION, &CLI::issue_unit_definition},
@@ -141,6 +150,8 @@ const std::map<proto::RPCCommandType, std::string> CLI::command_names_{
     {proto::RPCCOMMAND_ACCEPTVERIFICATION, "ACCEPTVERIFICATION"},
     {proto::RPCCOMMAND_SENDCONTACTMESSAGE, "SENDCONTACTMESSAGE"},
     {proto::RPCCOMMAND_GETCONTACTACTIVITY, "GETCONTACTACTIVITY"},
+    {proto::RPCCOMMAND_GETPENDINGPAYMENTS, "GETPENDINGPAYMENTS"},
+    {proto::RPCCOMMAND_ACCEPTPENDINGPAYMENTS, "ACCEPTPENDINGPAYMENTS"},
 };
 
 const std::map<proto::RPCResponseCode, std::string> CLI::status_names_{
@@ -148,7 +159,6 @@ const std::map<proto::RPCResponseCode, std::string> CLI::status_names_{
     {proto::RPCRESPONSE_SUCCESS, "SUCCESS"},
     {proto::RPCRESPONSE_BAD_SESSION, "BAD_SESSION"},
     {proto::RPCRESPONSE_NONE, "NONE"},
-    {proto::RPCRESPONSE_PARTIAL, "PARTIAL"},
     {proto::RPCRESPONSE_QUEUED, "QUEUED"},
     {proto::RPCRESPONSE_UNNECESSARY, "UNNECESSARY"},
     {proto::RPCRESPONSE_RETRY, "RETRY"},
@@ -164,8 +174,9 @@ const std::map<proto::AccountEventType, std::string> CLI::account_push_names_{
 };
 
 CLI::CLI(const api::Native& ot, const po::variables_map& options)
-    : ot_(ot)
-    , options_(options)
+    :  // ot_(ot)
+    //,
+    options_(options)
     , endpoint_(get_socket_path(options_))
     , callback_(zmq::ListenCallback::Factory(
           std::bind(&CLI::callback, this, std::placeholders::_1)))
@@ -190,11 +201,77 @@ void CLI::account_event_push(const proto::RPCPush& in)
     LogOutput("   Account ID: ")(event.id()).Flush();
     LogOutput("   Event type: ")(get_account_push_name(event.type())).Flush();
     LogOutput("   Contact: ")(event.contact()).Flush();
-    LogOutput("   Transaction number: ")(event.number()).Flush();
+    LogOutput("   Workflow ID: ")(event.workflow()).Flush();
     LogOutput("   Finalized amount: ")(event.amount()).Flush();
     LogOutput("   Pending amount: ")(event.pendingamount()).Flush();
     LogOutput("   Timestamp: ")(time.str()).Flush();
     LogOutput("   Memo: ")(event.memo()).Flush();
+}
+
+void CLI::accept_pending_payments(
+    const std::string& in,
+    const zmq::DealerSocket& socket)
+{
+    int instance{-1};
+    std::string destinationAccount{""};
+    std::string workflow{""};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    options.add_options()(
+        "destinationaccount",
+        po::value<std::string>(&destinationAccount),
+        "<string>");
+    options.add_options()(
+        "workflow", po::value<std::string>(&workflow), "<string>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    if (destinationAccount.empty()) {
+        LogOutput(__FUNCTION__)(": Missing destination account option").Flush();
+
+        return;
+    }
+
+    if (workflow.empty()) {
+        LogOutput(__FUNCTION__)(": Missing workflow option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_ACCEPTPENDINGPAYMENTS);
+    out.set_session(instance);
+
+    auto& acceptpendingpayment = *out.add_acceptpendingpayment();
+    acceptpendingpayment.set_version(ACCEPTPENDINGPAYMENT_VERSION);
+    acceptpendingpayment.set_destinationaccount(destinationAccount);
+    acceptpendingpayment.set_workflow(workflow);
+
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::accept_pending_payments_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
 }
 
 void CLI::add_client_session(
@@ -224,9 +301,9 @@ void CLI::add_server_session(
     int port{-1};
 
     po::options_description options("Options");
-    options.add_options()("ip", po::value<std::string>(&ip));
-    options.add_options()("port", po::value<int>(&port));
-    options.add_options()("onion", po::value<std::string>(&onion));
+    options.add_options()("ip", po::value<std::string>(&ip), "<string>");
+    options.add_options()("port", po::value<int>(&port), "<number>");
+    options.add_options()("onion", po::value<std::string>(&onion), "<string>");
     parse_command(in, options);
 
     proto::RPCCommand out{};
@@ -302,12 +379,18 @@ void CLI::create_account(const std::string& in, const zmq::DealerSocket& socket)
     std::string unitDefinition{""};
 
     po::options_description options("Options");
-    options.add_options()("instance", po::value<int>(&instance));
-    options.add_options()("owner", po::value<std::string>(&owner));
-    options.add_options()("server", po::value<std::string>(&server));
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    options.add_options()("owner", po::value<std::string>(&owner), "<string>");
     options.add_options()(
-        "unitdefinition", po::value<std::string>(&unitDefinition));
-    parse_command(in, options);
+        "server", po::value<std::string>(&server), "<string>");
+    options.add_options()(
+        "unitdefinition", po::value<std::string>(&unitDefinition), "<string>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
 
     if (-1 == instance) {
         LogOutput(__FUNCTION__)(": Missing instance option").Flush();
@@ -369,12 +452,17 @@ void CLI::create_nym(const std::string& in, const zmq::DealerSocket& socket)
     int index{-1};
 
     po::options_description options("Options");
-    options.add_options()("instance", po::value<int>(&instance));
-    options.add_options()("type", po::value<int>(&type));
-    options.add_options()("name", po::value<std::string>(&name));
-    options.add_options()("seed", po::value<std::string>(&seed));
-    options.add_options()("index", po::value<int>(&index));
-    parse_command(in, options);
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    options.add_options()("type", po::value<int>(&type), "<number>");
+    options.add_options()("name", po::value<std::string>(&name), "<string>");
+    options.add_options()("seed", po::value<std::string>(&seed), "<string>");
+    options.add_options()("index", po::value<int>(&index), "<number>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
 
     if (-1 == instance) {
         LogOutput(__FUNCTION__)(": Missing instance option").Flush();
@@ -433,20 +521,31 @@ void CLI::create_unit_definition(
     int unitOfAccount{proto::CITEMTYPE_UNKNOWN};
 
     po::options_description options("Options");
-    options.add_options()("instance", po::value<int>(&instance));
-    options.add_options()("nym", po::value<std::string>(&nymID));
-    options.add_options()("name", po::value<std::string>(&name));
-    options.add_options()("symbol", po::value<std::string>(&symbol));
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    options.add_options()("nym", po::value<std::string>(&nymID), "<string>");
+    options.add_options()("name", po::value<std::string>(&name), "<string>");
     options.add_options()(
-        "primaryunitname", po::value<std::string>(&primaryUnitName));
+        "symbol", po::value<std::string>(&symbol), "<string>");
     options.add_options()(
-        "fractionalunitname", po::value<std::string>(&fractionalUnitName));
+        "primaryunitname",
+        po::value<std::string>(&primaryUnitName),
+        "<string>");
     options.add_options()(
-        "tickersymbol", po::value<std::string>(&tickerSymbol));
-    options.add_options()("power", po::value<int>(&power));
-    options.add_options()("terms", po::value<std::string>(&terms));
-    options.add_options()("unitofaccount", po::value<int>(&unitOfAccount));
-    parse_command(in, options);
+        "fractionalunitname",
+        po::value<std::string>(&fractionalUnitName),
+        "<string>");
+    options.add_options()(
+        "tickersymbol", po::value<std::string>(&tickerSymbol), "<string>");
+    options.add_options()("power", po::value<int>(&power), "<number>");
+    options.add_options()("terms", po::value<std::string>(&terms), "<string>");
+    options.add_options()(
+        "unitofaccount", po::value<int>(&unitOfAccount), "<number>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
 
     if (-1 == instance) {
         LogOutput(__FUNCTION__)(": Missing instance option").Flush();
@@ -604,7 +703,7 @@ std::string CLI::get_json(const po::variables_map& cli)
 
         if ((0 >= pos) || (0xFFFFFFFF <= pos)) { return {}; }
 
-        std::uint32_t size(pos);
+        std::uint64_t size(pos);
         file.seekg(0, std::ios::beg);
         std::vector<char> bytes(size);
         file.read(&bytes[0], size);
@@ -620,12 +719,18 @@ void CLI::get_account_activity(
     const zmq::DealerSocket& socket)
 {
     int instance{-1};
-    std::string serverID{""};
+    std::string accountID{""};
 
     po::options_description options("Options");
-    options.add_options()("instance", po::value<int>(&instance));
-    options.add_options()("server", po::value<std::string>(&serverID));
-    parse_command(in, options);
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    options.add_options()(
+        "account", po::value<std::string>(&accountID), "<string>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
 
     if (-1 == instance) {
         LogOutput(__FUNCTION__)(": Missing instance option").Flush();
@@ -633,8 +738,8 @@ void CLI::get_account_activity(
         return;
     }
 
-    if (serverID.empty()) {
-        LogOutput(__FUNCTION__)(": Missing server id option").Flush();
+    if (accountID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing account id option").Flush();
 
         return;
     }
@@ -642,9 +747,9 @@ void CLI::get_account_activity(
     proto::RPCCommand out{};
     out.set_version(RPC_COMMAND_VERSION);
     out.set_cookie(Identifier::Random()->str());
-    out.set_type(proto::RPCCOMMAND_GETSERVERCONTRACT);
+    out.set_type(proto::RPCCOMMAND_GETACCOUNTACTIVITY);
     out.set_session(instance);
-    out.add_identifier(serverID);
+    out.add_identifier(accountID);
     const auto valid = proto::Validate(out, VERBOSE);
 
     OT_ASSERT(valid);
@@ -658,13 +763,12 @@ void CLI::get_account_activity_response(const proto::RPCResponse& in)
 {
     print_basic_info(in);
 
-    for (const auto& id : in.notary()) {
-        auto output =
-            proto::ProtoAsArmored(id, String::Factory("SERVER CONTRACT"));
+    for (const auto& accountevent : in.accountevent()) {
 
-        OT_ASSERT(!output->empty());
-
-        LogOutput("   Server Contract:\n")(output).Flush();
+        LogOutput("   Account ID: ")(accountevent.id()).Flush();
+        LogOutput("   Workflow ID: ")(accountevent.workflow()).Flush();
+        LogOutput("   Amount: ")(accountevent.amount()).Flush();
+        LogOutput("   Pending Amount: ")(accountevent.pendingamount()).Flush();
     }
 }
 
@@ -673,12 +777,18 @@ void CLI::get_account_balance(
     const zmq::DealerSocket& socket)
 {
     int instance{-1};
-    std::string serverID{""};
+    std::string accountID{""};
 
     po::options_description options("Options");
-    options.add_options()("instance", po::value<int>(&instance));
-    options.add_options()("server", po::value<std::string>(&serverID));
-    parse_command(in, options);
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    options.add_options()(
+        "account", po::value<std::string>(&accountID), "<string>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
 
     if (-1 == instance) {
         LogOutput(__FUNCTION__)(": Missing instance option").Flush();
@@ -686,8 +796,8 @@ void CLI::get_account_balance(
         return;
     }
 
-    if (serverID.empty()) {
-        LogOutput(__FUNCTION__)(": Missing server id option").Flush();
+    if (accountID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing acount id option").Flush();
 
         return;
     }
@@ -695,9 +805,9 @@ void CLI::get_account_balance(
     proto::RPCCommand out{};
     out.set_version(RPC_COMMAND_VERSION);
     out.set_cookie(Identifier::Random()->str());
-    out.set_type(proto::RPCCOMMAND_GETSERVERCONTRACT);
+    out.set_type(proto::RPCCOMMAND_GETACCOUNTBALANCE);
     out.set_session(instance);
-    out.add_identifier(serverID);
+    out.add_identifier(accountID);
     const auto valid = proto::Validate(out, VERBOSE);
 
     OT_ASSERT(valid);
@@ -711,13 +821,11 @@ void CLI::get_account_balance_response(const proto::RPCResponse& in)
 {
     print_basic_info(in);
 
-    for (const auto& id : in.notary()) {
-        auto output =
-            proto::ProtoAsArmored(id, String::Factory("SERVER CONTRACT"));
+    for (const auto& accountdata : in.balance()) {
 
-        OT_ASSERT(!output->empty());
-
-        LogOutput("   Server Contract:\n")(output).Flush();
+        LogOutput("   Account ID: ")(accountdata.id()).Flush();
+        LogOutput("   Balance: ")(accountdata.balance()).Flush();
+        LogOutput("   Pending Balance: ")(accountdata.pendingbalance()).Flush();
     }
 }
 
@@ -730,6 +838,67 @@ std::string CLI::get_account_push_name(const proto::AccountEventType type)
     }
 }
 
+void CLI::get_pending_payments(
+    const std::string& in,
+    const zmq::DealerSocket& socket)
+{
+    int instance{-1};
+    std::string ownerID{""};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    options.add_options()(
+        "owner", po::value<std::string>(&ownerID), "<string>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    if (ownerID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing server id option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_GETPENDINGPAYMENTS);
+    out.set_session(instance);
+    out.set_owner(ownerID);
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::get_pending_payments_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
+
+    for (const auto& accountevent : in.accountevent()) {
+        std::string eventType = "Incoming cheque";
+        if (proto::ACCOUNTEVENT_INCOMINGINVOICE == accountevent.type()) {
+            eventType = "Incoming invoice";
+        }
+        LogOutput("   Account Event: ")(eventType).Flush();
+        LogOutput("   Contact ID: ")(accountevent.contact()).Flush();
+        LogOutput("   Workflow ID: ")(accountevent.workflow()).Flush();
+        LogOutput("   Pending Amount: ")(accountevent.pendingamount()).Flush();
+    }
+}
+
 void CLI::get_server_contract(
     const std::string& in,
     const zmq::DealerSocket& socket)
@@ -738,9 +907,15 @@ void CLI::get_server_contract(
     std::string serverID{""};
 
     po::options_description options("Options");
-    options.add_options()("instance", po::value<int>(&instance));
-    options.add_options()("server", po::value<std::string>(&serverID));
-    parse_command(in, options);
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    options.add_options()(
+        "server", po::value<std::string>(&serverID), "<string>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
 
     if (-1 == instance) {
         LogOutput(__FUNCTION__)(": Missing instance option").Flush();
@@ -834,8 +1009,13 @@ void CLI::import_server_contract(
     std::string server_contract{""};
 
     po::options_description options("Options");
-    options.add_options()("instance", po::value<int>(&instance));
-    parse_command(in, options);
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
 
     if (-1 == instance) {
         LogOutput(__FUNCTION__)(": Missing instance option").Flush();
@@ -887,12 +1067,18 @@ void CLI::issue_unit_definition(
     std::string unitDefinition{""};
 
     po::options_description options("Options");
-    options.add_options()("instance", po::value<int>(&instance));
-    options.add_options()("owner", po::value<std::string>(&owner));
-    options.add_options()("server", po::value<std::string>(&server));
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    options.add_options()("owner", po::value<std::string>(&owner), "<string>");
     options.add_options()(
-        "unitdefinition", po::value<std::string>(&unitDefinition));
-    parse_command(in, options);
+        "server", po::value<std::string>(&server), "<string>");
+    options.add_options()(
+        "unitdefinition", po::value<std::string>(&unitDefinition), "<string>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
 
     if (-1 == instance) {
         LogOutput(__FUNCTION__)(": Missing instance option").Flush();
@@ -950,8 +1136,13 @@ void CLI::list_accounts(const std::string& in, const zmq::DealerSocket& socket)
     int instance{-1};
 
     po::options_description options("Options");
-    options.add_options()("instance", po::value<int>(&instance));
-    parse_command(in, options);
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
 
     if (-1 == instance) {
         LogOutput(__FUNCTION__)(": Missing instance option").Flush();
@@ -1005,8 +1196,13 @@ void CLI::list_contacts(const std::string& in, const zmq::DealerSocket& socket)
     int instance{-1};
 
     po::options_description options("Options");
-    options.add_options()("instance", po::value<int>(&instance));
-    parse_command(in, options);
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
 
     if (-1 == instance) {
         LogOutput(__FUNCTION__)(": Missing instance option").Flush();
@@ -1042,8 +1238,13 @@ void CLI::list_nyms(const std::string& in, const zmq::DealerSocket& socket)
     int instance{-1};
 
     po::options_description options("Options");
-    options.add_options()("instance", po::value<int>(&instance));
-    parse_command(in, options);
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
 
     if (-1 == instance) {
         LogOutput(__FUNCTION__)(": Missing instance option").Flush();
@@ -1080,8 +1281,13 @@ void CLI::list_server_contracts(
 {
     int instance{-1};
     po::options_description options("Options");
-    options.add_options()("instance", po::value<int>(&instance));
-    parse_command(in, options);
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
 
     if (-1 == instance) {
         LogOutput(__FUNCTION__)(": Missing instance option").Flush();
@@ -1146,8 +1352,13 @@ void CLI::list_unit_definitions(
     int instance{-1};
 
     po::options_description options("Options");
-    options.add_options()("instance", po::value<int>(&instance));
-    parse_command(in, options);
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
 
     if (-1 == instance) {
         LogOutput(__FUNCTION__)(": Missing instance option").Flush();
@@ -1185,10 +1396,16 @@ void CLI::move_funds(const std::string& in, const zmq::DealerSocket& socket)
     std::string serverID{""};
 
     po::options_description options("Options");
-    options.add_options()("instance", po::value<int>(&instance));
-    options.add_options()("nym", po::value<std::string>(&nymID));
-    options.add_options()("server", po::value<std::string>(&serverID));
-    parse_command(in, options);
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    options.add_options()("nym", po::value<std::string>(&nymID), "<string>");
+    options.add_options()(
+        "server", po::value<std::string>(&serverID), "<string>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
 
     if (-1 == instance) {
         LogOutput(__FUNCTION__)(": Missing instance option").Flush();
@@ -1230,7 +1447,7 @@ void CLI::move_funds_response(const proto::RPCResponse& in)
     print_basic_info(in);
 }
 
-void CLI::parse_command(
+bool CLI::parse_command(
     const std::string& input,
     po::options_description& options)
 {
@@ -1239,6 +1456,10 @@ void CLI::parse_command(
         po::command_line_parser(po::split_unix(input)).options(options).run(),
         variables);
     po::notify(variables);
+
+    if (variables.empty()) { return false; }
+
+    return true;
 }
 
 void CLI::print_basic_info(const proto::RPCPush& in)
@@ -1250,11 +1471,24 @@ void CLI::print_basic_info(const proto::RPCResponse& in)
 {
     LogOutput(" * Received RPC reply type: ")(get_command_name(in.type()))
         .Flush();
-    LogOutput("   Status: ")(get_status_name(in.success())).Flush();
 
-    if (proto::RPCRESPONSE_QUEUED == in.success()) {
-        LogOutput("   Task ID: ")(in.task()).Flush();
+    for (auto status : in.status()) {
+        LogOutput("   Status: ")(get_status_name(status.code())).Flush();
+
+        if (proto::RPCRESPONSE_QUEUED == status.code() &&
+            static_cast<int>(status.index()) < in.task_size()) {
+            LogOutput("   Task ID: ")(in.task(status.index()).id()).Flush();
+        }
     }
+}
+
+void CLI::print_options_description(po::options_description& options)
+{
+    std::stringstream str;
+    for (auto option : options.options()) {
+        str << option->format_name() << " " << option->description() << " ";
+    }
+    LogOutput(str.str()).Flush();
 }
 
 void CLI::process_push(zmq::Message& in)
@@ -1284,7 +1518,7 @@ void CLI::process_reply(zmq::Message& in)
     const auto response =
         proto::RawToProto<proto::RPCResponse>(frame.data(), frame.size());
 
-    if (false == proto::Validate(response, SILENT)) {
+    if (false == proto::Validate(response, VERBOSE)) {
         LogOutput(__FUNCTION__)(": Invalid RPCResponse.").Flush();
 
         return;
@@ -1306,10 +1540,16 @@ void CLI::register_nym(const std::string& in, const zmq::DealerSocket& socket)
     std::string serverID{""};
 
     po::options_description options("Options");
-    options.add_options()("instance", po::value<int>(&instance));
-    options.add_options()("nym", po::value<std::string>(&nymID));
-    options.add_options()("server", po::value<std::string>(&serverID));
-    parse_command(in, options);
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    options.add_options()("nym", po::value<std::string>(&nymID), "<string>");
+    options.add_options()(
+        "server", po::value<std::string>(&serverID), "<string>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
 
     if (-1 == instance) {
         LogOutput(__FUNCTION__)(": Missing instance option").Flush();
@@ -1404,13 +1644,19 @@ void CLI::send_payment(const std::string& in, const zmq::DealerSocket& socket)
     int amount{-1};
 
     po::options_description options("Options");
-    options.add_options()("instance", po::value<int>(&instance));
-    options.add_options()("contact", po::value<std::string>(&contactID));
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
     options.add_options()(
-        "sourceaccount", po::value<std::string>(&sourceAccountID));
-    options.add_options()("memo", po::value<std::string>(&memo));
-    options.add_options()("amount", po::value<int>(&amount));
-    parse_command(in, options);
+        "contact", po::value<std::string>(&contactID), "<string>");
+    options.add_options()(
+        "sourceaccount", po::value<std::string>(&sourceAccountID), "<string>");
+    options.add_options()("memo", po::value<std::string>(&memo), "<string>");
+    options.add_options()("amount", po::value<int>(&amount), "<number>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
 
     if (0 > instance) {
         LogOutput(__FUNCTION__)(": Missing instance option").Flush();

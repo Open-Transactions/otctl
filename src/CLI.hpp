@@ -41,12 +41,15 @@ private:
     static const std::map<proto::AccountEventType, std::string>
         account_push_names_;
 
-    const api::Native& ot_;
+//    const api::Native& ot_;
     const po::variables_map& options_;
     const std::string endpoint_;
     OTZMQListenCallback callback_;
     OTZMQDealerSocket socket_;
 
+    static void accept_pending_payments(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
     static void add_client_session(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
@@ -66,6 +69,9 @@ private:
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
     static void get_account_balance(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
+    static void get_pending_payments(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
     static void get_server_contract(
@@ -108,12 +114,14 @@ private:
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
 
+    static void accept_pending_payments_response(const proto::RPCResponse& in);
     static void add_session_response(const proto::RPCResponse& in);
     static void create_account_response(const proto::RPCResponse& in);
     static void create_nym_response(const proto::RPCResponse& in);
     static void create_unit_definition_response(const proto::RPCResponse& in);
     static void get_account_activity_response(const proto::RPCResponse& in);
     static void get_account_balance_response(const proto::RPCResponse& in);
+    static void get_pending_payments_response(const proto::RPCResponse& in);
     static void get_server_contract_response(const proto::RPCResponse& in);
     static void import_server_contract_response(const proto::RPCResponse& in);
     static void issue_unit_definition_response(const proto::RPCResponse& in);
@@ -135,9 +143,10 @@ private:
     static std::string get_json(const po::variables_map& cli);
     static std::string get_socket_path(const po::variables_map& cli);
     static std::string get_status_name(const proto::RPCResponseCode code);
-    static void parse_command(
+    static bool parse_command(
         const std::string& input,
         po::options_description& options);
+    static void print_options_description(po::options_description& options);
     static void print_basic_info(const proto::RPCPush& in);
     static void print_basic_info(const proto::RPCResponse& in);
     static void process_push(network::zeromq::Message& in);
