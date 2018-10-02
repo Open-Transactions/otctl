@@ -62,6 +62,9 @@ private:
     static void create_account(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
+    static void create_compatible_account(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
     static void create_nym(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
@@ -72,6 +75,9 @@ private:
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
     static void get_account_balance(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
+    static void get_compatible_accounts(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
     static void get_pending_payments(
@@ -125,6 +131,7 @@ private:
     static void create_unit_definition_response(const proto::RPCResponse& in);
     static void get_account_activity_response(const proto::RPCResponse& in);
     static void get_account_balance_response(const proto::RPCResponse& in);
+    static void get_compatible_accounts_response(const proto::RPCResponse& in);
     static void get_pending_payments_response(const proto::RPCResponse& in);
     static void get_server_contract_response(const proto::RPCResponse& in);
     static void import_server_contract_response(const proto::RPCResponse& in);

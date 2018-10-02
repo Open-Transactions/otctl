@@ -35,10 +35,12 @@ const std::map<std::string, proto::RPCCommandType> CLI::commands_{
     {"addcontact", proto::RPCCOMMAND_ADDCONTACT},
     {"addserver", proto::RPCCOMMAND_ADDSERVERSESSION},
     {"createaccount", proto::RPCCOMMAND_CREATEACCOUNT},
+    {"createcompatibleaccount", proto::RPCCOMMAND_CREATECOMPATIBLEACCOUNT},
     {"createnym", proto::RPCCOMMAND_CREATENYM},
     {"createunitdefinition", proto::RPCCOMMAND_CREATEUNITDEFINITION},
     {"getaccountactivity", proto::RPCCOMMAND_GETACCOUNTACTIVITY},
     {"getaccountbalance", proto::RPCCOMMAND_GETACCOUNTBALANCE},
+    {"getcompatibleaccounts", proto::RPCCOMMAND_GETCOMPATIBLEACCOUNTS},
     {"getpendingpayments", proto::RPCCOMMAND_GETPENDINGPAYMENTS},
     {"getserver", proto::RPCCOMMAND_GETSERVERCONTRACT},
     {"importserver", proto::RPCCOMMAND_IMPORTSERVERCONTRACT},
@@ -66,6 +68,8 @@ const std::map<proto::RPCCommandType, CLI::ResponseHandler>
         {proto::RPCCOMMAND_ADDCONTACT, &CLI::add_contact_response},
         {proto::RPCCOMMAND_ADDSERVERSESSION, &CLI::add_session_response},
         {proto::RPCCOMMAND_CREATEACCOUNT, &CLI::create_account_response},
+        {proto::RPCCOMMAND_CREATECOMPATIBLEACCOUNT,
+         &CLI::create_account_response},
         {proto::RPCCOMMAND_CREATENYM, &CLI::create_nym_response},
         {proto::RPCCOMMAND_CREATEUNITDEFINITION,
          &CLI::create_unit_definition_response},
@@ -73,6 +77,8 @@ const std::map<proto::RPCCommandType, CLI::ResponseHandler>
          &CLI::get_account_activity_response},
         {proto::RPCCOMMAND_GETACCOUNTBALANCE,
          &CLI::get_account_balance_response},
+        {proto::RPCCOMMAND_GETCOMPATIBLEACCOUNTS,
+         &CLI::get_compatible_accounts_response},
         {proto::RPCCOMMAND_GETPENDINGPAYMENTS,
          &CLI::get_pending_payments_response},
         {proto::RPCCOMMAND_GETSERVERCONTRACT,
@@ -99,10 +105,13 @@ const std::map<proto::RPCCommandType, CLI::Processor> CLI::processors_{
     {proto::RPCCOMMAND_ADDCONTACT, &CLI::add_contact},
     {proto::RPCCOMMAND_ADDSERVERSESSION, &CLI::add_server_session},
     {proto::RPCCOMMAND_CREATEACCOUNT, &CLI::create_account},
+    {proto::RPCCOMMAND_CREATECOMPATIBLEACCOUNT,
+     &CLI::create_compatible_account},
     {proto::RPCCOMMAND_CREATENYM, &CLI::create_nym},
     {proto::RPCCOMMAND_CREATEUNITDEFINITION, &CLI::create_unit_definition},
     {proto::RPCCOMMAND_GETACCOUNTACTIVITY, &CLI::get_account_activity},
     {proto::RPCCOMMAND_GETACCOUNTBALANCE, &CLI::get_account_balance},
+    {proto::RPCCOMMAND_GETCOMPATIBLEACCOUNTS, &CLI::get_compatible_accounts},
     {proto::RPCCOMMAND_GETPENDINGPAYMENTS, &CLI::get_pending_payments},
     {proto::RPCCOMMAND_GETSERVERCONTRACT, &CLI::get_server_contract},
     {proto::RPCCOMMAND_IMPORTSERVERCONTRACT, &CLI::import_server_contract},
@@ -156,6 +165,8 @@ const std::map<proto::RPCCommandType, std::string> CLI::command_names_{
     {proto::RPCCOMMAND_GETCONTACTACTIVITY, "GETCONTACTACTIVITY"},
     {proto::RPCCOMMAND_GETPENDINGPAYMENTS, "GETPENDINGPAYMENTS"},
     {proto::RPCCOMMAND_ACCEPTPENDINGPAYMENTS, "ACCEPTPENDINGPAYMENTS"},
+    {proto::RPCCOMMAND_CREATECOMPATIBLEACCOUNT, "CREATECOMPATIBLEACCOUNT"},
+    {proto::RPCCOMMAND_GETCOMPATIBLEACCOUNTS, "GETCOMPATIBLEACCOUNTS"},
 };
 
 const std::map<proto::RPCResponseCode, std::string> CLI::status_names_{
@@ -276,6 +287,11 @@ void CLI::accept_pending_payments(
 void CLI::accept_pending_payments_response(const proto::RPCResponse& in)
 {
     print_basic_info(in);
+
+    for (const auto& taskid : in.identifier()) {
+
+        LogOutput("   Accept Payment task id: ")(taskid).Flush();
+    }
 }
 
 void CLI::add_client_session(
@@ -505,6 +521,61 @@ void CLI::create_account_response(const proto::RPCResponse& in)
     for (const auto& id : in.identifier()) {
         LogOutput("   Account ID: ")(id).Flush();
     }
+}
+
+void CLI::create_compatible_account(
+    const std::string& in,
+    const zmq::DealerSocket& socket)
+{
+    int instance{-1};
+    std::string nymID{""};
+    std::string workflowID{""};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    options.add_options()(
+        "owner", po::value<std::string>(&nymID), "<string>");
+    options.add_options()(
+        "workflow", po::value<std::string>(&workflowID), "<string>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    if (nymID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing owner id option").Flush();
+
+        return;
+    }
+
+    if (workflowID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing workflow id option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_CREATECOMPATIBLEACCOUNT);
+    out.set_session(instance);
+    out.set_owner(nymID);
+    out.add_identifier(workflowID);
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
 }
 
 void CLI::create_nym(const std::string& in, const zmq::DealerSocket& socket)
@@ -741,6 +812,71 @@ std::string CLI::get_command_name(const proto::RPCCommandType type)
         return command_names_.at(type);
     } catch (...) {
         return std::to_string(type);
+    }
+}
+
+void CLI::get_compatible_accounts(
+    const std::string& in,
+    const zmq::DealerSocket& socket)
+{
+    int instance{-1};
+    std::string nymID{""};
+    std::string workflowID{""};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    options.add_options()(
+        "owner", po::value<std::string>(&nymID), "<string>");
+    options.add_options()(
+        "workflow", po::value<std::string>(&workflowID), "<string>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    if (nymID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing owner id option").Flush();
+
+        return;
+    }
+
+    if (workflowID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing workflow id option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_GETCOMPATIBLEACCOUNTS);
+    out.set_session(instance);
+    out.set_owner(nymID);
+    out.add_identifier(workflowID);
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::get_compatible_accounts_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
+
+    for (const auto& id : in.identifier()) {
+
+        LogOutput("   Account ID: ")(id).Flush();
     }
 }
 
