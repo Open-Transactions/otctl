@@ -41,7 +41,7 @@ private:
     static const std::map<proto::AccountEventType, std::string>
         account_push_names_;
 
-//    const api::Native& ot_;
+    //    const api::Native& ot_;
     const po::variables_map& options_;
     const std::string endpoint_;
     OTZMQListenCallback callback_;
@@ -51,6 +51,9 @@ private:
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
     static void add_client_session(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
+    static void add_contact(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
     static void add_server_session(
@@ -115,6 +118,7 @@ private:
         const network::zeromq::DealerSocket& socket);
 
     static void accept_pending_payments_response(const proto::RPCResponse& in);
+    static void add_contact_response(const proto::RPCResponse& in);
     static void add_session_response(const proto::RPCResponse& in);
     static void create_account_response(const proto::RPCResponse& in);
     static void create_nym_response(const proto::RPCResponse& in);
