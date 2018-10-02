@@ -19,6 +19,7 @@ extern "C" {
 namespace fs = boost::filesystem;
 namespace zmq = opentxs::network::zeromq;
 
+#define ADD_CONTACT_VERSION 1
 #define API_ARG_VERSION 1
 #define RPC_COMMAND_VERSION 1
 #define CREATE_NYM_VERSION 1
@@ -31,6 +32,7 @@ namespace opentxs::otctl
 const std::map<std::string, proto::RPCCommandType> CLI::commands_{
     {"acceptpendingpayments", proto::RPCCOMMAND_ACCEPTPENDINGPAYMENTS},
     {"addclient", proto::RPCCOMMAND_ADDCLIENTSESSION},
+    {"addcontact", proto::RPCCOMMAND_ADDCONTACT},
     {"addserver", proto::RPCCOMMAND_ADDSERVERSESSION},
     {"createaccount", proto::RPCCOMMAND_CREATEACCOUNT},
     {"createnym", proto::RPCCOMMAND_CREATENYM},
@@ -61,6 +63,7 @@ const std::map<proto::RPCCommandType, CLI::ResponseHandler>
         {proto::RPCCOMMAND_ACCEPTPENDINGPAYMENTS,
          &CLI::accept_pending_payments_response},
         {proto::RPCCOMMAND_ADDCLIENTSESSION, &CLI::add_session_response},
+        {proto::RPCCOMMAND_ADDCONTACT, &CLI::add_contact_response},
         {proto::RPCCOMMAND_ADDSERVERSESSION, &CLI::add_session_response},
         {proto::RPCCOMMAND_CREATEACCOUNT, &CLI::create_account_response},
         {proto::RPCCOMMAND_CREATENYM, &CLI::create_nym_response},
@@ -93,6 +96,7 @@ const std::map<proto::RPCCommandType, CLI::ResponseHandler>
 const std::map<proto::RPCCommandType, CLI::Processor> CLI::processors_{
     {proto::RPCCOMMAND_ACCEPTPENDINGPAYMENTS, &CLI::accept_pending_payments},
     {proto::RPCCOMMAND_ADDCLIENTSESSION, &CLI::add_client_session},
+    {proto::RPCCOMMAND_ADDCONTACT, &CLI::add_contact},
     {proto::RPCCOMMAND_ADDSERVERSESSION, &CLI::add_server_session},
     {proto::RPCCOMMAND_CREATEACCOUNT, &CLI::create_account},
     {proto::RPCCOMMAND_CREATENYM, &CLI::create_nym},
@@ -290,6 +294,66 @@ void CLI::add_client_session(
     const auto sent = send_message(socket, out);
 
     OT_ASSERT(sent);
+}
+
+void CLI::add_contact(const std::string& in, const zmq::DealerSocket& socket)
+{
+    int instance{-1};
+    std::string label{""};
+    std::string nymid{""};
+    std::string paymentcode{""};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    options.add_options()("label", po::value<std::string>(&label), "<string>");
+    options.add_options()("nymid", po::value<std::string>(&nymid), "<string>");
+    options.add_options()(
+        "paymentcode", po::value<std::string>(&paymentcode), "<string>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    if (label.empty()) {
+        LogOutput(__FUNCTION__)(": Missing label account option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_ADDCONTACT);
+    out.set_session(instance);
+    auto& addcontact = *out.add_addcontact();
+    addcontact.set_version(ADD_CONTACT_VERSION);
+    addcontact.set_label(label);
+    addcontact.set_paymentcode(paymentcode);
+    addcontact.set_nymid(nymid);
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::add_contact_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
+
+    for (const auto& id : in.identifier()) {
+        LogOutput("   Contact ID: ")(id).Flush();
+    }
 }
 
 void CLI::add_server_session(
