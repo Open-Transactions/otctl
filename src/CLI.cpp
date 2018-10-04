@@ -31,7 +31,7 @@ namespace zmq = opentxs::network::zeromq;
 namespace opentxs::otctl
 {
 const std::map<std::string, proto::RPCCommandType> CLI::commands_{
-    {"acceptpendingpayments", proto::RPCCOMMAND_ACCEPTPENDINGPAYMENTS},
+    {"acceptpendingpayment", proto::RPCCOMMAND_ACCEPTPENDINGPAYMENTS},
     {"addclient", proto::RPCCOMMAND_ADDCLIENTSESSION},
     {"addcontact", proto::RPCCOMMAND_ADDCONTACT},
     {"addserver", proto::RPCCOMMAND_ADDSERVERSESSION},
@@ -56,6 +56,7 @@ const std::map<std::string, proto::RPCCommandType> CLI::commands_{
     {"movefunds", proto::RPCCOMMAND_MOVEFUNDS},
     {"registernym", proto::RPCCOMMAND_REGISTERNYM},
     {"sendcheque", proto::RPCCOMMAND_SENDPAYMENT},
+    {"transfer", proto::RPCCOMMAND_SENDPAYMENT},
 };
 const std::map<proto::RPCPushType, CLI::PushHandler> CLI::push_handlers_{
     {proto::RPCPUSH_ACCOUNT, &CLI::account_event_push},
@@ -64,7 +65,7 @@ const std::map<proto::RPCPushType, CLI::PushHandler> CLI::push_handlers_{
 const std::map<proto::RPCCommandType, CLI::ResponseHandler>
     CLI::response_handlers_{
         {proto::RPCCOMMAND_ACCEPTPENDINGPAYMENTS,
-         &CLI::accept_pending_payments_response},
+         &CLI::accept_pending_payment_response},
         {proto::RPCCOMMAND_ADDCLIENTSESSION, &CLI::add_session_response},
         {proto::RPCCOMMAND_ADDCONTACT, &CLI::add_contact_response},
         {proto::RPCCOMMAND_ADDSERVERSESSION, &CLI::add_session_response},
@@ -101,7 +102,7 @@ const std::map<proto::RPCCommandType, CLI::ResponseHandler>
         {proto::RPCCOMMAND_SENDPAYMENT, &CLI::send_payment_response},
     };
 const std::map<proto::RPCCommandType, CLI::Processor> CLI::processors_{
-    {proto::RPCCOMMAND_ACCEPTPENDINGPAYMENTS, &CLI::accept_pending_payments},
+    {proto::RPCCOMMAND_ACCEPTPENDINGPAYMENTS, &CLI::accept_pending_payment},
     {proto::RPCCOMMAND_ADDCLIENTSESSION, &CLI::add_client_session},
     {proto::RPCCOMMAND_ADDCONTACT, &CLI::add_contact},
     {proto::RPCCOMMAND_ADDSERVERSESSION, &CLI::add_server_session},
@@ -222,7 +223,7 @@ void CLI::account_event_push(const proto::RPCPush& in)
     LogOutput("   Memo: ")(event.memo()).Flush();
 }
 
-void CLI::accept_pending_payments(
+void CLI::accept_pending_payment(
     const std::string& in,
     const zmq::DealerSocket& socket)
 {
@@ -283,7 +284,7 @@ void CLI::accept_pending_payments(
     OT_ASSERT(sent);
 }
 
-void CLI::accept_pending_payments_response(const proto::RPCResponse& in)
+void CLI::accept_pending_payment_response(const proto::RPCResponse& in)
 {
     print_basic_info(in);
 
@@ -1852,7 +1853,7 @@ bool CLI::send_message(
 
 // Invokes RPCCOMMAND_SENDPAYMENT for transaction type RPCPAYMENTTYPE_CHEQUE
 // only.
-void CLI::send_payment(const std::string& in, const zmq::DealerSocket& socket)
+void CLI::send_cheque(const std::string& in, const zmq::DealerSocket& socket)
 {
     int instance{-1};
     std::string contactID{""};
@@ -1922,6 +1923,16 @@ void CLI::send_payment(const std::string& in, const zmq::DealerSocket& socket)
     OT_ASSERT(sent);
 }
 
+void CLI::send_payment(const std::string& in, const zmq::DealerSocket& socket)
+{
+    const auto first = in.substr(0, in.find(" "));
+    if ("sendcheque" == first) {
+        send_cheque(in, socket);
+    } else if ("transfer" == first) {
+        transfer(in, socket);
+    }
+}
+
 void CLI::send_payment_response(const proto::RPCResponse& in)
 {
     print_basic_info(in);
@@ -1947,4 +1958,90 @@ void CLI::task_complete_push(const proto::RPCPush& in)
     LogOutput("   ID: ")(task.id()).Flush();
     LogOutput("   Result: ")(((task.result()) ? "success" : "failure")).Flush();
 }
+
+// Invokes RPCCOMMAND_SENDPAYMENT for transaction type RPCPAYMENTTYPE_TRANSFER
+// only.
+void CLI::transfer(const std::string& in, const zmq::DealerSocket& socket)
+{
+    int instance{-1};
+    std::string contactID{""};
+    std::string sourceAccountID{""};
+    std::string destinationAccountID{""};
+    std::string memo{""};
+    int amount{-1};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    options.add_options()(
+        "contact", po::value<std::string>(&contactID), "<string>");
+    options.add_options()(
+        "sourceaccount", po::value<std::string>(&sourceAccountID), "<string>");
+    options.add_options()(
+        "destinationaccount",
+        po::value<std::string>(&destinationAccountID),
+        "<string>");
+    options.add_options()("memo", po::value<std::string>(&memo), "<string>");
+    options.add_options()("amount", po::value<int>(&amount), "<number>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
+
+    if (0 > instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    if (contactID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing contactid option").Flush();
+
+        return;
+    }
+
+    if (sourceAccountID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing sourceaccountid option").Flush();
+
+        return;
+    }
+
+    if (destinationAccountID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing destinationaccountid option")
+            .Flush();
+
+        return;
+    }
+
+    if (0 >= amount) {
+        LogOutput(__FUNCTION__)(": Missing amount option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_SENDPAYMENT);
+    out.set_session(instance);
+
+    auto& sendpayment = *out.mutable_sendpayment();
+    sendpayment.set_version(SENDPAYMENT_VERSION);
+    sendpayment.set_type(proto::RPCPAYMENTTYPE_TRANSFER);
+    sendpayment.set_contact(contactID);
+    sendpayment.set_sourceaccount(sourceAccountID);
+    sendpayment.set_destinationaccount(destinationAccountID);
+    if (!memo.empty()) { sendpayment.set_memo(memo); }
+    sendpayment.set_amount(amount);
+
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
 }  // namespace opentxs::otctl
