@@ -19,13 +19,14 @@ extern "C" {
 namespace fs = boost::filesystem;
 namespace zmq = opentxs::network::zeromq;
 
+#define ACCEPTPENDINGPAYMENT_VERSION 1
 #define ADD_CONTACT_VERSION 1
 #define API_ARG_VERSION 1
-#define RPC_COMMAND_VERSION 1
 #define CREATE_NYM_VERSION 1
 #define CREATE_UNITDEFINITION_VERSION 1
+#define MOVEFUNDS_VERSION 1
+#define RPC_COMMAND_VERSION 1
 #define SENDPAYMENT_VERSION 1
-#define ACCEPTPENDINGPAYMENT_VERSION 1
 
 namespace opentxs::otctl
 {
@@ -189,9 +190,7 @@ const std::map<proto::AccountEventType, std::string> CLI::account_push_names_{
 };
 
 CLI::CLI(const api::Native& ot, const po::variables_map& options)
-    :  // ot_(ot)
-    //,
-    options_(options)
+    : options_(options)
     , endpoint_(get_socket_path(options_))
     , callback_(zmq::ListenCallback::Factory(
           std::bind(&CLI::callback, this, std::placeholders::_1)))
@@ -533,8 +532,7 @@ void CLI::create_compatible_account(
 
     po::options_description options("Options");
     options.add_options()("instance", po::value<int>(&instance), "<number>");
-    options.add_options()(
-        "owner", po::value<std::string>(&nymID), "<string>");
+    options.add_options()("owner", po::value<std::string>(&nymID), "<string>");
     options.add_options()(
         "workflow", po::value<std::string>(&workflowID), "<string>");
     auto hasOptions = parse_command(in, options);
@@ -657,7 +655,7 @@ void CLI::create_unit_definition(
 
     po::options_description options("Options");
     options.add_options()("instance", po::value<int>(&instance), "<number>");
-    options.add_options()("nym", po::value<std::string>(&nymID), "<string>");
+    options.add_options()("owner", po::value<std::string>(&nymID), "<string>");
     options.add_options()("name", po::value<std::string>(&name), "<string>");
     options.add_options()(
         "symbol", po::value<std::string>(&symbol), "<string>");
@@ -689,7 +687,7 @@ void CLI::create_unit_definition(
     }
 
     if (nymID.empty()) {
-        LogOutput(__FUNCTION__)(": Missing nym option").Flush();
+        LogOutput(__FUNCTION__)(": Missing owner option").Flush();
 
         return;
     }
@@ -825,8 +823,7 @@ void CLI::get_compatible_accounts(
 
     po::options_description options("Options");
     options.add_options()("instance", po::value<int>(&instance), "<number>");
-    options.add_options()(
-        "owner", po::value<std::string>(&nymID), "<string>");
+    options.add_options()("owner", po::value<std::string>(&nymID), "<string>");
     options.add_options()(
         "workflow", po::value<std::string>(&workflowID), "<string>");
     auto hasOptions = parse_command(in, options);
@@ -1293,7 +1290,7 @@ void CLI::issue_unit_definition(
     }
 
     if (server.empty()) {
-        LogOutput(__FUNCTION__)(": Missing notary option").Flush();
+        LogOutput(__FUNCTION__)(": Missing server option").Flush();
 
         return;
     }
@@ -1592,14 +1589,21 @@ void CLI::list_unit_definitions_response(const proto::RPCResponse& in)
 void CLI::move_funds(const std::string& in, const zmq::DealerSocket& socket)
 {
     int instance{-1};
-    std::string nymID{""};
-    std::string serverID{""};
+    std::string sourceAccountID{""};
+    std::string destinationAccountID{""};
+    std::string memo{""};
+    int amount{-1};
 
     po::options_description options("Options");
     options.add_options()("instance", po::value<int>(&instance), "<number>");
-    options.add_options()("nym", po::value<std::string>(&nymID), "<string>");
     options.add_options()(
-        "server", po::value<std::string>(&serverID), "<string>");
+        "sourceaccount", po::value<std::string>(&sourceAccountID), "<string>");
+    options.add_options()(
+        "destinationaccount",
+        po::value<std::string>(&destinationAccountID),
+        "<string>");
+    options.add_options()("memo", po::value<std::string>(&memo), "<string>");
+    options.add_options()("amount", po::value<int>(&amount), "<number>");
     auto hasOptions = parse_command(in, options);
 
     if (!hasOptions) {
@@ -1613,14 +1617,21 @@ void CLI::move_funds(const std::string& in, const zmq::DealerSocket& socket)
         return;
     }
 
-    if (nymID.empty()) {
-        LogOutput(__FUNCTION__)(": Missing nym id option").Flush();
+    if (sourceAccountID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing source account id option").Flush();
 
         return;
     }
 
-    if (serverID.empty()) {
-        LogOutput(__FUNCTION__)(": Missing server id option").Flush();
+    if (destinationAccountID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing destination account id option")
+            .Flush();
+
+        return;
+    }
+
+    if (0 >= amount) {
+        LogOutput(__FUNCTION__)(": Missing amount option").Flush();
 
         return;
     }
@@ -1628,11 +1639,17 @@ void CLI::move_funds(const std::string& in, const zmq::DealerSocket& socket)
     proto::RPCCommand out{};
     out.set_version(RPC_COMMAND_VERSION);
     out.set_cookie(Identifier::Random()->str());
-    out.set_type(proto::RPCCOMMAND_REGISTERNYM);
+    out.set_type(proto::RPCCOMMAND_MOVEFUNDS);
     out.set_session(instance);
-    out.set_nym(nymID);
-    out.set_owner(nymID);
-    out.set_notary(serverID);
+
+    auto& movefunds = *out.mutable_movefunds();
+    movefunds.set_version(MOVEFUNDS_VERSION);
+    movefunds.set_type(proto::RPCPAYMENTTYPE_TRANSFER);
+    movefunds.set_sourceaccount(sourceAccountID);
+    movefunds.set_destinationaccount(destinationAccountID);
+    if (!memo.empty()) { movefunds.set_memo(memo); }
+    movefunds.set_amount(amount);
+
     const auto valid = proto::Validate(out, VERBOSE);
 
     OT_ASSERT(valid);
@@ -1741,7 +1758,7 @@ void CLI::register_nym(const std::string& in, const zmq::DealerSocket& socket)
 
     po::options_description options("Options");
     options.add_options()("instance", po::value<int>(&instance), "<number>");
-    options.add_options()("nym", po::value<std::string>(&nymID), "<string>");
+    options.add_options()("owner", po::value<std::string>(&nymID), "<string>");
     options.add_options()(
         "server", po::value<std::string>(&serverID), "<string>");
     auto hasOptions = parse_command(in, options);
@@ -1774,7 +1791,7 @@ void CLI::register_nym(const std::string& in, const zmq::DealerSocket& socket)
     out.set_cookie(Identifier::Random()->str());
     out.set_type(proto::RPCCOMMAND_REGISTERNYM);
     out.set_session(instance);
-    out.set_nym(nymID);
+    out.add_associatenym(nymID);
     out.set_owner(nymID);
     out.set_notary(serverID);
     const auto valid = proto::Validate(out, VERBOSE);
@@ -1886,6 +1903,7 @@ void CLI::send_payment(const std::string& in, const zmq::DealerSocket& socket)
     out.set_version(RPC_COMMAND_VERSION);
     out.set_cookie(Identifier::Random()->str());
     out.set_type(proto::RPCCOMMAND_SENDPAYMENT);
+    out.set_session(instance);
 
     auto& sendpayment = *out.mutable_sendpayment();
     sendpayment.set_version(SENDPAYMENT_VERSION);
