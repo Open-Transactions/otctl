@@ -47,7 +47,7 @@ private:
     OTZMQListenCallback callback_;
     OTZMQDealerSocket socket_;
 
-    static void accept_pending_payments(
+    static void accept_pending_payment(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
     static void add_client_session(
@@ -119,11 +119,17 @@ private:
     static void register_nym(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
+    static void send_cheque(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
     static void send_payment(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
+    static void transfer(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
 
-    static void accept_pending_payments_response(const proto::RPCResponse& in);
+    static void accept_pending_payment_response(const proto::RPCResponse& in);
     static void add_contact_response(const proto::RPCResponse& in);
     static void add_session_response(const proto::RPCResponse& in);
     static void create_account_response(const proto::RPCResponse& in);
