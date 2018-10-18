@@ -80,10 +80,19 @@ private:
     static void get_compatible_accounts(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
+    static void get_nym(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
     static void get_pending_payments(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
+    static void get_seed(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
     static void get_server_contract(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
+    static void import_seed(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
     static void import_server_contract(
@@ -102,6 +111,9 @@ private:
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
     static void list_nyms(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
+    static void list_seeds(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
     static void list_server_contracts(
@@ -138,13 +150,17 @@ private:
     static void get_account_activity_response(const proto::RPCResponse& in);
     static void get_account_balance_response(const proto::RPCResponse& in);
     static void get_compatible_accounts_response(const proto::RPCResponse& in);
+    static void get_nym_response(const proto::RPCResponse& in);
     static void get_pending_payments_response(const proto::RPCResponse& in);
+    static void get_seed_response(const proto::RPCResponse& in);
     static void get_server_contract_response(const proto::RPCResponse& in);
+    static void import_seed_response(const proto::RPCResponse& in);
     static void import_server_contract_response(const proto::RPCResponse& in);
     static void issue_unit_definition_response(const proto::RPCResponse& in);
     static void list_accounts_response(const proto::RPCResponse& in);
     static void list_contacts_response(const proto::RPCResponse& in);
     static void list_nyms_response(const proto::RPCResponse& in);
+    static void list_seeds_response(const proto::RPCResponse& in);
     static void list_servers_response(const proto::RPCResponse& in);
     static void list_session_response(const proto::RPCResponse& in);
     static void list_unit_definitions_response(const proto::RPCResponse& in);
