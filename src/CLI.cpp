@@ -9,7 +9,13 @@
 #include <boost/bind.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/tokenizer.hpp>
+
+#if __has_include("json/json.h")
 #include <json/json.h>
+#elif __has_include("jsoncpp/json/json.h")
+#include <jsoncpp/json/json.h>
+#endif
+#endif
 
 extern "C" {
 #include <pwd.h>
@@ -1445,9 +1451,7 @@ void CLI::get_workflow_response(const proto::RPCResponse& in)
     }
 }
 
-void CLI::import_seed(
-    const std::string& in,
-    const zmq::DealerSocket& socket)
+void CLI::import_seed(const std::string& in, const zmq::DealerSocket& socket)
 {
     int instance{-1};
     std::string words{""};
@@ -1455,8 +1459,7 @@ void CLI::import_seed(
 
     po::options_description options("Options");
     options.add_options()("instance", po::value<int>(&instance), "<number>");
-    options.add_options()(
-        "words", po::value<std::string>(&words), "<string>");
+    options.add_options()("words", po::value<std::string>(&words), "<string>");
     options.add_options()(
         "passphrase", po::value<std::string>(&passphrase), "<string>");
     auto hasOptions = parse_command(in, options);
