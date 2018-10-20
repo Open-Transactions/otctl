@@ -41,7 +41,6 @@ private:
     static const std::map<proto::AccountEventType, std::string>
         account_push_names_;
 
-    //    const api::Native& ot_;
     const po::variables_map& options_;
     const std::string endpoint_;
     OTZMQListenCallback callback_;
@@ -90,6 +89,9 @@ private:
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
     static void get_server_contract(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
+    static void get_workflow(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
     static void import_seed(
@@ -154,6 +156,7 @@ private:
     static void get_pending_payments_response(const proto::RPCResponse& in);
     static void get_seed_response(const proto::RPCResponse& in);
     static void get_server_contract_response(const proto::RPCResponse& in);
+    static void get_workflow_response(const proto::RPCResponse& in);
     static void import_seed_response(const proto::RPCResponse& in);
     static void import_server_contract_response(const proto::RPCResponse& in);
     static void issue_unit_definition_response(const proto::RPCResponse& in);

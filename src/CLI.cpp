@@ -24,6 +24,7 @@ namespace zmq = opentxs::network::zeromq;
 #define API_ARG_VERSION 1
 #define CREATE_NYM_VERSION 1
 #define CREATE_UNITDEFINITION_VERSION 1
+#define GETWORKFLOW_VERSION 1
 #define HDSEED_VERSION 1
 #define MOVEFUNDS_VERSION 1
 #define RPC_COMMAND_VERSION 1
@@ -47,6 +48,7 @@ const std::map<std::string, proto::RPCCommandType> CLI::commands_{
     {"getpendingpayments", proto::RPCCOMMAND_GETPENDINGPAYMENTS},
     {"getseed", proto::RPCCOMMAND_GETHDSEED},
     {"getserver", proto::RPCCOMMAND_GETSERVERCONTRACT},
+    {"getworkflow", proto::RPCCOMMAND_GETWORKFLOW},
     {"importseed", proto::RPCCOMMAND_IMPORTHDSEED},
     {"importserver", proto::RPCCOMMAND_IMPORTSERVERCONTRACT},
     {"issueunitdefinition", proto::RPCCOMMAND_ISSUEUNITDEFINITION},
@@ -92,6 +94,7 @@ const std::map<proto::RPCCommandType, CLI::ResponseHandler>
         {proto::RPCCOMMAND_GETHDSEED, &CLI::get_seed_response},
         {proto::RPCCOMMAND_GETSERVERCONTRACT,
          &CLI::get_server_contract_response},
+        {proto::RPCCOMMAND_GETWORKFLOW, &CLI::get_workflow_response},
         {proto::RPCCOMMAND_IMPORTHDSEED, &CLI::import_seed_response},
         {proto::RPCCOMMAND_IMPORTSERVERCONTRACT,
          &CLI::import_server_contract_response},
@@ -141,6 +144,7 @@ const std::map<proto::RPCCommandType, CLI::Processor> CLI::processors_{
     {proto::RPCCOMMAND_MOVEFUNDS, &CLI::move_funds},
     {proto::RPCCOMMAND_REGISTERNYM, &CLI::register_nym},
     {proto::RPCCOMMAND_SENDPAYMENT, &CLI::send_payment},
+    {proto::RPCCOMMAND_GETWORKFLOW, &CLI::get_workflow},
 };
 
 const std::map<proto::RPCCommandType, std::string> CLI::command_names_{
@@ -182,6 +186,7 @@ const std::map<proto::RPCCommandType, std::string> CLI::command_names_{
     {proto::RPCCOMMAND_ACCEPTPENDINGPAYMENTS, "ACCEPTPENDINGPAYMENTS"},
     {proto::RPCCOMMAND_CREATECOMPATIBLEACCOUNT, "CREATECOMPATIBLEACCOUNT"},
     {proto::RPCCOMMAND_GETCOMPATIBLEACCOUNTS, "GETCOMPATIBLEACCOUNTS"},
+    {proto::RPCCOMMAND_GETWORKFLOW, "GETWORKFLOW"},
 };
 
 const std::map<proto::RPCResponseCode, std::string> CLI::status_names_{
@@ -1321,6 +1326,122 @@ std::string CLI::get_status_name(const proto::RPCResponseCode code)
         return status_names_.at(code);
     } catch (...) {
         return std::to_string(code);
+    }
+}
+
+void CLI::get_workflow(const std::string& in, const zmq::DealerSocket& socket)
+{
+    int instance{-1};
+    std::string nymID{""};
+    std::string workflowID{""};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    options.add_options()("nym", po::value<std::string>(&nymID), "<string>");
+    options.add_options()(
+        "workflow", po::value<std::string>(&workflowID), "<string>");
+    auto hasOptions = parse_command(in, options);
+
+    if (!hasOptions) {
+        print_options_description(options);
+        return;
+    }
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    if (nymID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing nym id option").Flush();
+
+        return;
+    }
+
+    if (workflowID.empty()) {
+        LogOutput(__FUNCTION__)(": Missing workflow id option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_GETWORKFLOW);
+    out.set_session(instance);
+    auto& getworkflow = *out.add_getworkflow();
+    getworkflow.set_version(GETWORKFLOW_VERSION);
+    getworkflow.set_nymid(nymID);
+    getworkflow.set_workflowid(workflowID);
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::get_workflow_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
+
+    for (const auto& workflow : in.workflow()) {
+        LogOutput(__FUNCTION__)(": Version ")(workflow.version())(" workflow")
+            .Flush();
+        LogOutput(__FUNCTION__)(": * ID: ")(workflow.id()).Flush();
+        LogOutput(__FUNCTION__)(": * Type: ")(workflow.type()).Flush();
+        LogOutput(__FUNCTION__)(": * State: ")(workflow.state()).Flush();
+
+        for (const auto& source : workflow.source()) {
+            LogOutput(__FUNCTION__)(": * Source version: ")(source.version())
+                .Flush();
+            LogOutput(__FUNCTION__)(":   * id: ")(source.id()).Flush();
+            LogOutput(__FUNCTION__)(":   * revision: ")(source.revision())
+                .Flush();
+            LogOutput(__FUNCTION__)(":   * item: ").Flush();
+            LogOutput(source.item()).Flush();
+        }
+
+        LogOutput(__FUNCTION__)(": * Notary: ")(workflow.notary()).Flush();
+
+        for (const auto& party : workflow.party()) {
+            LogOutput(__FUNCTION__)(": * Party nym id: ")(party).Flush();
+        }
+
+        for (const auto& unit : workflow.unit()) {
+            LogOutput(__FUNCTION__)(": * Unit definition id: ")(unit).Flush();
+        }
+
+        for (const auto& account : workflow.account()) {
+            LogOutput(__FUNCTION__)(": * Account id: ")(account).Flush();
+        }
+
+        for (const auto& event : workflow.event()) {
+            LogOutput(__FUNCTION__)(": * Event version: ")(event.version())
+                .Flush();
+            LogOutput(__FUNCTION__)(":   * type: ")(event.type()).Flush();
+
+            for (const auto& item : event.item()) {
+                LogOutput(__FUNCTION__)(":   * item: ").Flush();
+                LogOutput(item).Flush();
+            }
+
+            LogOutput(__FUNCTION__)(":   * timestamp: ")(event.time()).Flush();
+            LogOutput(__FUNCTION__)(":   * method: ")(event.method()).Flush();
+            LogOutput(__FUNCTION__)(":   * transport: ")(event.transport())
+                .Flush();
+            LogOutput(__FUNCTION__)(":   * nym: ")(event.nym()).Flush();
+            LogOutput(__FUNCTION__)(":   * success: ")(
+                (event.success() ? "true" : "false"))
+                .Flush();
+            LogOutput(__FUNCTION__)(":   * memo: ")(event.memo()).Flush();
+        }
+
+        LogOutput(__FUNCTION__)(": * Archived: ")(
+            (workflow.archived() ? "true" : "false"))
+            .Flush();
     }
 }
 
