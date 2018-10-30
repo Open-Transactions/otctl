@@ -219,6 +219,9 @@ CLI::CLI(const api::Native& ot, const po::variables_map& options)
     , callback_(zmq::ListenCallback::Factory(
           std::bind(&CLI::callback, this, std::placeholders::_1)))
     , socket_(ot.ZMQ().DealerSocket(callback_, zmq::Socket::Direction::Connect))
+    , log_callback_(zmq::ListenCallback::Factory(
+          std::bind(&CLI::remote_log, this, std::placeholders::_1)))
+    , log_subscriber_(ot.ZMQ().SubscribeSocket(log_callback_))
 {
     OT_ASSERT(false == endpoint_.empty());
 
@@ -226,6 +229,13 @@ CLI::CLI(const api::Native& ot, const po::variables_map& options)
     const auto connected = socket_->Start(endpoint_);
 
     OT_ASSERT(connected);
+
+    if (options_.count("logendpoint") != 0) {
+        const auto connected =
+            log_subscriber_->Start(options_["logendpoint"].as<std::string>());
+
+        OT_ASSERT(connected);
+    }
 }
 
 void CLI::account_event_push(const proto::RPCPush& in)
@@ -2157,6 +2167,23 @@ void CLI::register_nym(const std::string& in, const zmq::DealerSocket& socket)
 void CLI::register_nym_response(const proto::RPCResponse& in)
 {
     print_basic_info(in);
+}
+
+void CLI::remote_log(network::zeromq::Message& in)
+{
+    if (3 > in.Body().size()) { return; }
+
+    int level{-1};
+    const auto& levelFrame = in.Body_at(0);
+    const auto& messageFrame = in.Body_at(1);
+    const auto& id = in.Body_at(2);
+    OTPassword::safe_memcpy(
+        &level, sizeof(level), levelFrame.data(), levelFrame.size());
+    std::cout << "Remote log received:\n"
+              << "Level: " << level << "\n"
+              << "Thread ID: " << std::string(id) << "\n"
+              << "Message:\n"
+              << std::string(messageFrame) << std::endl;
 }
 
 int CLI::Run()

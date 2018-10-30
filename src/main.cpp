@@ -18,7 +18,8 @@ int main(int argc, char** argv)
         "keyfile",
         po::value<std::string>(),
         "Path to file containing endpoint keys.")(
-        "endpoint", po::value<std::string>(), "Remote zmq endpoint");
+        "endpoint", po::value<std::string>(), "Remote zmq endpoint")(
+        "logendpoint", po::value<std::string>(), "Source of otagent logs");
     auto variables = po::variables_map{};
 
     try {
