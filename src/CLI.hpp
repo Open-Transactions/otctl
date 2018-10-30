@@ -45,6 +45,8 @@ private:
     const std::string endpoint_;
     OTZMQListenCallback callback_;
     OTZMQDealerSocket socket_;
+    OTZMQListenCallback log_callback_;
+    OTZMQSubscribeSocket log_subscriber_;
 
     static void accept_pending_payment(
         const std::string& in,
@@ -196,6 +198,7 @@ private:
     static void task_complete_push(const proto::RPCPush& in);
 
     void callback(network::zeromq::Message& in);
+    void remote_log(network::zeromq::Message& in);
 
     CLI() = delete;
     CLI(const CLI&) = delete;
