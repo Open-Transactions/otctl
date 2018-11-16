@@ -93,6 +93,9 @@ private:
     static void get_server_contract(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
+    static void get_transaction_data(
+        const std::string& in,
+        const network::zeromq::DealerSocket& socket);
     static void get_workflow(
         const std::string& in,
         const network::zeromq::DealerSocket& socket);
@@ -157,6 +160,7 @@ private:
     static void get_nym_response(const proto::RPCResponse& in);
     static void get_pending_payments_response(const proto::RPCResponse& in);
     static void get_seed_response(const proto::RPCResponse& in);
+    static void get_transaction_data_response(const proto::RPCResponse& in);
     static void get_server_contract_response(const proto::RPCResponse& in);
     static void get_workflow_response(const proto::RPCResponse& in);
     static void import_seed_response(const proto::RPCResponse& in);

@@ -32,7 +32,7 @@ namespace zmq = opentxs::network::zeromq;
 #define GETWORKFLOW_VERSION 1
 #define HDSEED_VERSION 1
 #define MOVEFUNDS_VERSION 1
-#define RPC_COMMAND_VERSION 1
+#define RPC_COMMAND_VERSION 2
 #define SENDPAYMENT_VERSION 1
 
 namespace opentxs::otctl
@@ -69,6 +69,7 @@ const std::map<std::string, proto::RPCCommandType> CLI::commands_{
     {"registernym", proto::RPCCOMMAND_REGISTERNYM},
     {"sendcheque", proto::RPCCOMMAND_SENDPAYMENT},
     {"transfer", proto::RPCCOMMAND_SENDPAYMENT},
+    {"gettransactiondata", proto::RPCCOMMAND_GETTRANSACTIONDATA},
 };
 const std::map<proto::RPCPushType, CLI::PushHandler> CLI::push_handlers_{
     {proto::RPCPUSH_ACCOUNT, &CLI::account_event_push},
@@ -117,6 +118,8 @@ const std::map<proto::RPCCommandType, CLI::ResponseHandler>
         {proto::RPCCOMMAND_MOVEFUNDS, &CLI::move_funds_response},
         {proto::RPCCOMMAND_REGISTERNYM, &CLI::register_nym_response},
         {proto::RPCCOMMAND_SENDPAYMENT, &CLI::send_payment_response},
+        {proto::RPCCOMMAND_GETTRANSACTIONDATA,
+         &CLI::get_transaction_data_response},
     };
 const std::map<proto::RPCCommandType, CLI::Processor> CLI::processors_{
     {proto::RPCCOMMAND_ACCEPTPENDINGPAYMENTS, &CLI::accept_pending_payment},
@@ -150,6 +153,7 @@ const std::map<proto::RPCCommandType, CLI::Processor> CLI::processors_{
     {proto::RPCCOMMAND_REGISTERNYM, &CLI::register_nym},
     {proto::RPCCOMMAND_SENDPAYMENT, &CLI::send_payment},
     {proto::RPCCOMMAND_GETWORKFLOW, &CLI::get_workflow},
+    {proto::RPCCOMMAND_GETTRANSACTIONDATA, &CLI::get_transaction_data},
 };
 
 const std::map<proto::RPCCommandType, std::string> CLI::command_names_{
@@ -192,6 +196,8 @@ const std::map<proto::RPCCommandType, std::string> CLI::command_names_{
     {proto::RPCCOMMAND_CREATECOMPATIBLEACCOUNT, "CREATECOMPATIBLEACCOUNT"},
     {proto::RPCCOMMAND_GETCOMPATIBLEACCOUNTS, "GETCOMPATIBLEACCOUNTS"},
     {proto::RPCCOMMAND_GETWORKFLOW, "GETWORKFLOW"},
+    {proto::RPCCOMMAND_GETUNITDEFINITION, "GETUNITDEFINITION"},
+    {proto::RPCCOMMAND_GETTRANSACTIONDATA, "GETTRANSACTIONDATA"},
 };
 
 const std::map<proto::RPCResponseCode, std::string> CLI::status_names_{
@@ -204,6 +210,7 @@ const std::map<proto::RPCResponseCode, std::string> CLI::status_names_{
     {proto::RPCRESPONSE_RETRY, "RETRY"},
     {proto::RPCRESPONSE_NO_PATH_TO_RECIPIENT, "NO_PATH_TO_RECIPIENT"},
     {proto::RPCRESPONSE_ERROR, "ERROR"},
+    {proto::RPCRESPONSE_UNIMPLEMENTED, "UNIMPLEMENTED"},
 };
 
 const std::map<proto::AccountEventType, std::string> CLI::account_push_names_{
@@ -995,11 +1002,12 @@ void CLI::get_account_activity_response(const proto::RPCResponse& in)
     print_basic_info(in);
 
     for (const auto& accountevent : in.accountevent()) {
-
         LogOutput("   Account ID: ")(accountevent.id()).Flush();
         LogOutput("   Workflow ID: ")(accountevent.workflow()).Flush();
         LogOutput("   Amount: ")(accountevent.amount()).Flush();
         LogOutput("   Pending Amount: ")(accountevent.pendingamount()).Flush();
+        LogOutput("   Memo: ")(accountevent.memo()).Flush();
+        LogOutput("   UUID: ")(accountevent.uuid()).Flush();
     }
 }
 
@@ -1341,6 +1349,71 @@ std::string CLI::get_status_name(const proto::RPCResponseCode code)
         return status_names_.at(code);
     } catch (...) {
         return std::to_string(code);
+    }
+}
+
+void CLI::get_transaction_data(
+    const std::string& in,
+    const network::zeromq::DealerSocket& socket)
+{
+    int instance{-1};
+    std::string uuid{""};
+
+    po::options_description options("Options");
+    options.add_options()("instance", po::value<int>(&instance), "<number>");
+    options.add_options()("uuid", po::value<std::string>(&uuid), "<string>");
+    auto hasOptions = parse_command(in, options);
+
+    if (false == hasOptions) {
+        print_options_description(options);
+        return;
+    }
+
+    if (-1 == instance) {
+        LogOutput(__FUNCTION__)(": Missing instance option").Flush();
+
+        return;
+    }
+
+    if (uuid.empty()) {
+        LogOutput(__FUNCTION__)(": Missing uuid option").Flush();
+
+        return;
+    }
+
+    proto::RPCCommand out{};
+    out.set_version(RPC_COMMAND_VERSION);
+    out.set_cookie(Identifier::Random()->str());
+    out.set_type(proto::RPCCOMMAND_GETTRANSACTIONDATA);
+    out.set_session(instance);
+    out.add_identifier(uuid);
+    const auto valid = proto::Validate(out, VERBOSE);
+
+    OT_ASSERT(valid);
+
+    const auto sent = send_message(socket, out);
+
+    OT_ASSERT(sent);
+}
+
+void CLI::get_transaction_data_response(const proto::RPCResponse& in)
+{
+    print_basic_info(in);
+
+    for (const auto& data : in.transactiondata()) {
+        LogOutput("   UUID: ")(data.uuid()).Flush();
+        LogOutput("   Type: ")(data.type()).Flush();
+
+        for (const auto& account : data.sourceaccounts()) {
+            LogOutput("   Source account: ")(account).Flush();
+        }
+
+        for (const auto& account : data.destinationaccounts()) {
+            LogOutput("   Destination account: ")(account).Flush();
+        }
+
+        LogOutput("   Amount: ")(data.amount()).Flush();
+        LogOutput("   State: ")(data.state()).Flush();
     }
 }
 
