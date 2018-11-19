@@ -233,12 +233,12 @@ CLI::CLI(const api::Native& ot, const po::variables_map& options)
     OT_ASSERT(false == endpoint_.empty());
 
     set_keys(options_, socket_);
-    const auto connected = socket_->Start(endpoint_);
+    auto connected = socket_->Start(endpoint_);
 
     OT_ASSERT(connected);
 
     if (options_.count("logendpoint") != 0) {
-        const auto connected =
+        connected =
             log_subscriber_->Start(options_["logendpoint"].as<std::string>());
 
         OT_ASSERT(connected);
