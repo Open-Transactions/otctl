@@ -32,9 +32,13 @@ int main(int argc, char** argv)
     }
 
     const auto& ot = opentxs::OT::Start({});
-    opentxs::otctl::CLI cli{ot, variables};
-    cli.Run();
+    std::unique_ptr<opentxs::otctl::CLI> otctl;
+    otctl.reset(new opentxs::otctl::CLI(ot, variables));
+    otctl->Run();
+    opentxs::LogNormal("Shutting down...").Flush();
+    otctl.reset();
     opentxs::OT::Cleanup();
+    opentxs::OT::Join();
 
     return 0;
 }
