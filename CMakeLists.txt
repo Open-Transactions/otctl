@@ -74,6 +74,11 @@ endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PEDANTIC_CXX_FLAGS}")
 
+if(APPLE)
+	include_directories(/usr/local/include)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-reserved-id-macro -Wno-zero-as-null-pointer-constant -Wno-deprecated-dynamic-exception-spec -Wno-unused-parameter -Wno-redundant-parens -Wno-documentation -Wno-inconsistent-missing-destructor-override -Wno-non-virtual-dtor -Wno-switch-enum -Wno-old-style-cast -Wno-extra-semi -Wno-documentation-unknown-command -Wno-comma -Wno-double-promotion -Wno-shadow-field -Wno-deprecated -Wno-shorten-64-to-32")
+endif()
+
 message(STATUS "C Compiler ID:      ${CMAKE_C_COMPILER_ID}")
 message(STATUS "C Flags:            ${CMAKE_C_FLAGS}")
 message(STATUS "C link flags:       ${CMAKE_C_LINK_FLAGS}")
