@@ -3,7 +3,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <chrono>
+#include <ctime>
+#include <iostream>
+#include <fstream>
+#include <string>
+
 #include "CLI.hpp"
+#include "util.h"
 
 #include <boost/algorithm/string.hpp>
 #include <boost/bind.hpp>
@@ -2259,17 +2266,65 @@ void CLI::remote_log(network::zeromq::Message& in)
               << std::string(messageFrame) << std::endl;
 }
 
+std::vector<std::string> history;
+
 int CLI::Run()
 {
     std::string input{};
     LogOutput("otctl shell mode activated").Flush();
 
     while (true) {
+        std::cout << std::endl << "$ ";
         std::getline(std::cin, input);
 
         if (input.empty()) { continue; }
 
-        const auto first = input.substr(0, input.find(" "));
+        if (input[0] == '#') continue;
+
+        auto first = input.substr(0, input.find(" "));
+        if ("history_write" == first) {
+            std::string partial = input.substr(12, std::string::npos);
+            ::trim(partial);
+            struct passwd* pw = getpwuid(getuid());
+            const char* homedir = pw->pw_dir;
+            partial = partial.insert(0, "/").insert(0, homedir);
+            std::ofstream myfile(partial, std::ios::out | std::ios::app);
+            if (myfile.is_open()) {
+                std::time_t result = std::time(nullptr);
+                myfile << "\n# history_dump on" << std::ctime(&result) << "\n";
+                for (std::string line : history) myfile << line << "\n";
+                myfile.close();
+                std::cout << "File written to: " + partial << std::endl;
+            } else
+                std::cerr << "Couldn't write history to file " << partial
+                          << std::endl;
+            continue;
+        } else if ("history" == first) {
+
+            std::string partial = input.substr(7, std::string::npos);
+            ::trim(partial);
+            if (partial.empty() /*list history*/) {
+                int i = 0;
+                for (std::string line : history)
+                    std::cout << i++ << " : " + line << "\n";
+                std::cout << std::endl;
+                continue;
+            } else /* use history */
+            {
+                unsigned long history_index = std::stoul(partial);
+                if (history_index < history.size()) {
+                    input = history[history_index];
+                    std::cout << "Using history " << history_index
+                              << ": " + input << std::endl;
+                    first = input.substr(0, input.find(" "));
+                } else {
+                    std::cerr << "Invalid history referenced: outside range."
+                              << std::endl;
+                    continue;
+                }
+            }
+        }
+        history.push_back(input);
 
         if ("quit" == first) { break; }
 

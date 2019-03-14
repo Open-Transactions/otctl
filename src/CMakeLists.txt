@@ -19,6 +19,7 @@ set(cxx-sources
 
 set(cxx-headers
   "CLI.hpp"
+        util.h
 )
 
 add_executable(${MODULE_NAME}
