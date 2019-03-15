@@ -3,7 +3,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <chrono>
+#include <ctime>
+#include <iostream>
+#include <fstream>
+#include <string>
+
 #include "CLI.hpp"
+#include "util.h"
 
 #include <boost/algorithm/string.hpp>
 #include <boost/bind.hpp>
@@ -34,6 +41,10 @@ namespace zmq = opentxs::network::zeromq;
 #define MOVEFUNDS_VERSION 1
 #define RPC_COMMAND_VERSION 2
 #define SENDPAYMENT_VERSION 1
+
+const std::string HISTORY = {"history"};
+const std::string WRITE_HISTORY = {"write_history"};
+const std::string READ_HISTORY = {"read_history"};
 
 namespace opentxs::otctl
 {
@@ -2259,32 +2270,132 @@ void CLI::remote_log(network::zeromq::Message& in)
               << std::string(messageFrame) << std::endl;
 }
 
+std::vector<std::string> history;
+
 int CLI::Run()
 {
     std::string input{};
     LogOutput("otctl shell mode activated").Flush();
 
     while (true) {
+        std::cout << std::endl << "$ ";
         std::getline(std::cin, input);
 
         if (input.empty()) { continue; }
 
-        const auto first = input.substr(0, input.find(" "));
+        if (input[0] == '#') continue;
 
+        auto first = input.substr(0, input.find(" "));
         if ("quit" == first) { break; }
 
-        try {
-            const auto command = commands_.at(first);
-            const auto& processor = *processors_.at(command);
-            processor(input, socket_);
-        } catch (po::error& err) {
-            LogOutput("Error processing command: ")(err.what()).Flush();
-        } catch (...) {
-            LogOutput("Unknown command").Flush();
+        if (READ_HISTORY == first) {
+            std::string partial =
+                input.substr(READ_HISTORY.size(), std::string::npos);
+            ::trim(partial);
+            if (partial.size() == 0) {
+                std::cerr << READ_HISTORY << " requires a valid filename."
+                          << std::endl;
+                continue;
+            }
+            struct passwd* pw = getpwuid(getuid());
+            const char* homedir = pw->pw_dir;
+            partial = partial.insert(0, "/").insert(0, homedir);
+            std::ifstream myfile(partial, std::ios::in | std::ios::app);
+            if (myfile.is_open()) {
+                std::string line;
+                while (std::getline(myfile, line)) { history.push_back(line); }
+                myfile.close();
+                std::cout << "File read into history: " + partial << std::endl;
+            } else
+                std::cerr << "Couldn't read history from file " << partial
+                          << std::endl;
+            continue;
+        } else if (WRITE_HISTORY == first) {
+            std::string partial =
+                input.substr(WRITE_HISTORY.size(), std::string::npos);
+            ::trim(partial);
+            if (partial.size() == 0) {
+                std::cerr << WRITE_HISTORY << " requires a valid filename."
+                          << std::endl;
+                continue;
+            }
+            struct passwd* pw = getpwuid(getuid());
+            const char* homedir = pw->pw_dir;
+            partial = partial.insert(0, "/").insert(0, homedir);
+            std::ofstream myfile(partial, std::ios::out | std::ios::app);
+            if (myfile.is_open()) {
+                std::time_t result = std::time(nullptr);
+                myfile << "\n# " << WRITE_HISTORY << " on "
+                       << std::ctime(&result) << "\n";
+                for (std::string line : history) myfile << line << "\n";
+                myfile.close();
+                std::cout << "File written to: " + partial << std::endl;
+            } else
+                std::cerr << "Couldn't write history to file " << partial
+                          << std::endl;
+            continue;
+        } else if (HISTORY == first) {
+
+            std::string partial =
+                input.substr(HISTORY.size(), std::string::npos);
+            ::trim(partial);
+            if (partial.empty() /*list history*/) {
+                int i = 0;
+                for (std::string line : history)
+                    std::cout << i++ << " : " + line << "\n";
+                std::cout << std::endl;
+                continue;
+            } else /* use history */
+            {
+                // check for history range execution
+                std::size_t pos = partial.find("-");
+                if (pos != std::string::npos) {
+                    unsigned long start = std::stoul(partial);
+                    unsigned long end = 1 + std::stoul(partial.substr(1 + pos));
+                    for (unsigned long x = start; x < end; x++) {
+                        input = history[x];
+                        first = input.substr(0, input.find(" "));
+                        std::cout << "Using history " << x << ": " + input
+                                  << std::endl;
+                        execute(first, input);
+                    }
+                    continue;
+                }
+                unsigned long history_index = std::stoul(partial);
+                if (history_index < history.size()) {
+                    input = history[history_index];
+                    std::cout << "Using history " << history_index
+                              << ": " + input << std::endl;
+                    first = input.substr(0, input.find(" "));
+                } else {
+                    std::cerr << "Invalid history referenced: outside range."
+                              << std::endl;
+                    continue;
+                }
+            }
         }
+        history.push_back(input);
+
+        execute(first, input);
     }
 
     return 0;
+}
+
+void CLI::execute(std::string cmd, std::string arguments)
+{
+    try {
+        using namespace std::chrono_literals;
+        const auto command = commands_.at(cmd);
+        const auto& processor = *processors_.at(command);
+        processor(arguments, socket_);
+        std::cerr << std::endl;           // flush the stream
+        std::this_thread::sleep_for(1s);  // wait for process output/cerr
+    } catch (po::error& err) {
+        LogOutput("Error processing command: ")(err.what()).Flush();
+    } catch (...) {
+        LogOutput("Unknown command").Flush();
+    }
 }
 
 bool CLI::send_message(
