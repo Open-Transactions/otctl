@@ -256,13 +256,14 @@ CLI::CLI(const api::Native& ot, const po::variables_map& options)
     }
 }
 
-void CLI::account_event_push(const proto::RPCPush& in)
+void CLI::account_event_push(const proto::RPCPush& in, const int instance)
 {
     print_basic_info(in);
     const auto& event = in.accountevent();
     std::stringstream time{};
     time << std::time_t{event.timestamp()};
 
+    if (-1 != instance) { LogOutput("   Instance: ")(instance).Flush(); }
     LogOutput("   Type: ACCOUNT").Flush();
     LogOutput("   Account ID: ")(event.id()).Flush();
     LogOutput("   Event type: ")(get_account_push_name(event.type())).Flush();
@@ -495,7 +496,7 @@ void CLI::callback(zmq::Message& in)
 
     if (1 == size) {
         process_reply(in);
-    } else if (2 == size) {
+    } else if (3 == size) {
         process_push(in);
     } else {
         LogOutput(__FUNCTION__)(": Invalid reply.").Flush();
@@ -742,6 +743,13 @@ void CLI::create_unit_definition(
         LogOutput(__FUNCTION__)(": Missing owner option").Flush();
 
         return;
+    } else {
+        auto id = opentxs::identifier::Nym::Factory(nymID);
+        if (id->empty()) {
+            LogOutput(__FUNCTION__)(": Invalid owner option").Flush();
+
+            return;
+        }
     }
 
     if (name.empty()) {
@@ -2165,9 +2173,17 @@ void CLI::process_push(zmq::Message& in)
         return;
     }
 
+    const auto& instanceFrame = in.Body_at(2);
+    int instance = -1;
+    OTPassword::safe_memcpy(
+        &instance,
+        sizeof(instance),
+        instanceFrame.data(),
+        static_cast<std::uint32_t>(instanceFrame.size()));
+
     try {
         auto& handler = *push_handlers_.at(response.type());
-        handler(response);
+        handler(response, instance);
     } catch (...) {
         LogOutput(__FUNCTION__)(": Unhandled response type: ")(response.type())
             .Flush();
@@ -2511,10 +2527,11 @@ void CLI::set_keys(const po::variables_map& cli, zmq::DealerSocket& socket)
     socket.SetKeysZ85(serverKey, clientPrivateKey, clientPublicKey);
 }
 
-void CLI::task_complete_push(const proto::RPCPush& in)
+void CLI::task_complete_push(const proto::RPCPush& in, const int instance)
 {
     print_basic_info(in);
     const auto& task = in.taskcomplete();
+    if (-1 != instance) { LogOutput("   Instance: ")(instance).Flush(); }
     LogOutput("   Type: TASK").Flush();
     LogOutput("   ID: ")(task.id()).Flush();
     LogOutput("   Result: ")(((task.result()) ? "success" : "failure")).Flush();
