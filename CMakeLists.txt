@@ -34,6 +34,7 @@ option(BUILD_VERBOSE       "Verbose build output." ON)
 
 set(PACKAGE_CONTACT        ""              CACHE <TYPE>  "Package Maintainer")
 set(PACKAGE_VENDOR         "Stash Crypto"  CACHE <TYPE>  "Package Vendor")
+option(OT_WITH_QT          "opentxs was built with Qt support" OFF)
 
 if(BUILD_VERBOSE)
   set(CMAKE_VERBOSE_MAKEFILE true)
@@ -108,6 +109,13 @@ find_package(Boost REQUIRED program_options filesystem system)
 set(CURSES_NEED_NCURSES TRUE)
 find_package(Curses REQUIRED)
 find_package(Jsoncpp REQUIRED)
+
+if(OT_WITH_QT)
+  find_package(Qt5 COMPONENTS Core Qml REQUIRED)
+  set_target_properties(Qt5::Core PROPERTIES MAP_IMPORTED_CONFIG_COVERAGE "RELEASE")
+  list(GET Qt5Core_INCLUDE_DIRS 0 QT_INCLUDE_DIR)
+  include_directories("${QT_INCLUDE_DIR}")
+endif()
 
 #-----------------------------------------------------------------------------
 # Force out-of-source build
