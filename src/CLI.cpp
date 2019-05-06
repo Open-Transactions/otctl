@@ -234,6 +234,7 @@ const std::map<proto::AccountEventType, std::string> CLI::account_push_names_{
 CLI::CLI(const api::Native& ot, const po::variables_map& options)
     : options_(options)
     , endpoint_(get_socket_path(options_))
+    , history_()
     , callback_(zmq::ListenCallback::Factory(
           std::bind(&CLI::callback, this, std::placeholders::_1)))
     , socket_(ot.ZMQ().DealerSocket(callback_, zmq::Socket::Direction::Connect))
@@ -241,18 +242,18 @@ CLI::CLI(const api::Native& ot, const po::variables_map& options)
           std::bind(&CLI::remote_log, this, std::placeholders::_1)))
     , log_subscriber_(ot.ZMQ().SubscribeSocket(log_callback_))
 {
-    OT_ASSERT(false == endpoint_.empty());
+    OT_ASSERT(false == endpoint_.empty())
 
     set_keys(options_, socket_);
     auto connected = socket_->Start(endpoint_);
 
-    OT_ASSERT(connected);
+    OT_ASSERT(connected)
 
     if (options_.count("logendpoint") != 0) {
         connected =
             log_subscriber_->Start(options_["logendpoint"].as<std::string>());
 
-        OT_ASSERT(connected);
+        OT_ASSERT(connected)
     }
 }
 
@@ -329,11 +330,11 @@ void CLI::accept_pending_payment(
 
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::accept_pending_payment_response(const proto::RPCResponse& in)
@@ -357,11 +358,11 @@ void CLI::add_client_session(
     out.set_session(-1);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::add_contact(const std::string& in, const zmq::DealerSocket& socket)
@@ -408,11 +409,11 @@ void CLI::add_contact(const std::string& in, const zmq::DealerSocket& socket)
     addcontact.set_nymid(nymid);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::add_contact_response(const proto::RPCResponse& in)
@@ -471,11 +472,11 @@ void CLI::add_server_session(
 
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::add_session_response(const proto::RPCResponse& in)
@@ -559,11 +560,11 @@ void CLI::create_account(const std::string& in, const zmq::DealerSocket& socket)
 
     const auto valid = proto::Validate(command, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, command);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::create_account_response(const proto::RPCResponse& in)
@@ -622,11 +623,11 @@ void CLI::create_compatible_account(
     out.add_identifier(workflowID);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::create_nym(const std::string& in, const zmq::DealerSocket& socket)
@@ -675,11 +676,11 @@ void CLI::create_nym(const std::string& in, const zmq::DealerSocket& socket)
     create.set_index(index);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::create_nym_response(const proto::RPCResponse& in)
@@ -820,11 +821,11 @@ void CLI::create_unit_definition(
         static_cast<proto::ContactItemType>(unitOfAccount));
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::create_unit_definition_response(const proto::RPCResponse& in)
@@ -920,11 +921,11 @@ void CLI::get_compatible_accounts(
     out.add_identifier(workflowID);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::get_compatible_accounts_response(const proto::RPCResponse& in)
@@ -1009,11 +1010,11 @@ void CLI::get_account_activity(
     out.add_identifier(accountID);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::get_account_activity_response(const proto::RPCResponse& in)
@@ -1068,11 +1069,11 @@ void CLI::get_account_balance(
     out.add_identifier(accountID);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::get_account_balance_response(const proto::RPCResponse& in)
@@ -1132,11 +1133,11 @@ void CLI::get_nym(const std::string& in, const zmq::DealerSocket& socket)
     out.add_identifier(ownerID);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::get_nym_response(const proto::RPCResponse& in)
@@ -1193,11 +1194,11 @@ void CLI::get_pending_payments(
     out.set_owner(ownerID);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::get_pending_payments_response(const proto::RPCResponse& in)
@@ -1251,11 +1252,11 @@ void CLI::get_seed(const std::string& in, const zmq::DealerSocket& socket)
     out.add_identifier(seedID);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::get_seed_response(const proto::RPCResponse& in)
@@ -1307,11 +1308,11 @@ void CLI::get_server_contract(
     out.add_identifier(serverID);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::get_server_contract_response(const proto::RPCResponse& in)
@@ -1322,7 +1323,7 @@ void CLI::get_server_contract_response(const proto::RPCResponse& in)
         auto output =
             proto::ProtoAsArmored(id, String::Factory("SERVER CONTRACT"));
 
-        OT_ASSERT(!output->empty());
+        OT_ASSERT(!output->empty())
 
         LogOutput("   Server Contract:\n")(output).Flush();
     }
@@ -1408,11 +1409,11 @@ void CLI::get_transaction_data(
     out.add_identifier(uuid);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::get_transaction_data_response(const proto::RPCResponse& in)
@@ -1483,11 +1484,11 @@ void CLI::get_workflow(const std::string& in, const zmq::DealerSocket& socket)
     getworkflow.set_workflowid(workflowID);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::get_workflow_response(const proto::RPCResponse& in)
@@ -1594,11 +1595,11 @@ void CLI::import_seed(const std::string& in, const zmq::DealerSocket& socket)
 
     const auto valid = proto::Validate(command, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, command);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::import_seed_response(const proto::RPCResponse& in)
@@ -1653,11 +1654,11 @@ void CLI::import_server_contract(
 
     const auto valid = proto::Validate(command, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, command);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::import_server_contract_response(const proto::RPCResponse& in)
@@ -1723,11 +1724,11 @@ void CLI::issue_unit_definition(
 
     const auto valid = proto::Validate(command, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, command);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::issue_unit_definition_response(const proto::RPCResponse& in)
@@ -1765,11 +1766,11 @@ void CLI::list_accounts(const std::string& in, const zmq::DealerSocket& socket)
     out.set_session(instance);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::list_accounts_response(const proto::RPCResponse& in)
@@ -1792,11 +1793,11 @@ void CLI::list_client_sessions(
     out.set_session(-1);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::list_contacts(const std::string& in, const zmq::DealerSocket& socket)
@@ -1825,11 +1826,11 @@ void CLI::list_contacts(const std::string& in, const zmq::DealerSocket& socket)
     out.set_session(instance);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::list_contacts_response(const proto::RPCResponse& in)
@@ -1867,11 +1868,11 @@ void CLI::list_nyms(const std::string& in, const zmq::DealerSocket& socket)
     out.set_session(instance);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::list_nyms_response(const proto::RPCResponse& in)
@@ -1909,11 +1910,11 @@ void CLI::list_seeds(const std::string& in, const zmq::DealerSocket& socket)
     out.set_session(instance);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::list_seeds_response(const proto::RPCResponse& in)
@@ -1952,11 +1953,11 @@ void CLI::list_server_contracts(
     out.set_session(instance);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::list_server_sessions(
@@ -1970,11 +1971,11 @@ void CLI::list_server_sessions(
     out.set_session(-1);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::list_servers_response(const proto::RPCResponse& in)
@@ -2023,11 +2024,11 @@ void CLI::list_unit_definitions(
     out.set_session(instance);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::list_unit_definitions_response(const proto::RPCResponse& in)
@@ -2105,11 +2106,11 @@ void CLI::move_funds(const std::string& in, const zmq::DealerSocket& socket)
 
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::move_funds_response(const proto::RPCResponse& in)
@@ -2257,11 +2258,11 @@ void CLI::register_nym(const std::string& in, const zmq::DealerSocket& socket)
     out.set_notary(serverID);
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::register_nym_response(const proto::RPCResponse& in)
@@ -2285,8 +2286,6 @@ void CLI::remote_log(network::zeromq::Message& in)
               << "Message:\n"
               << std::string(messageFrame) << std::endl;
 }
-
-std::vector<std::string> history;
 
 int CLI::Run()
 {
@@ -2319,7 +2318,7 @@ int CLI::Run()
             std::ifstream myfile(partial, std::ios::in | std::ios::app);
             if (myfile.is_open()) {
                 std::string line;
-                while (std::getline(myfile, line)) { history.push_back(line); }
+                while (std::getline(myfile, line)) { history_.push_back(line); }
                 myfile.close();
                 std::cout << "File read into history: " + partial << std::endl;
             } else
@@ -2343,7 +2342,7 @@ int CLI::Run()
                 std::time_t result = std::time(nullptr);
                 myfile << "\n# " << WRITE_HISTORY << " on "
                        << std::ctime(&result) << "\n";
-                for (std::string line : history) myfile << line << "\n";
+                for (std::string line : history_) myfile << line << "\n";
                 myfile.close();
                 std::cout << "File written to: " + partial << std::endl;
             } else
@@ -2357,7 +2356,7 @@ int CLI::Run()
             ::trim(partial);
             if (partial.empty() /*list history*/) {
                 int i = 0;
-                for (std::string line : history)
+                for (std::string line : history_)
                     std::cout << i++ << " : " + line << "\n";
                 std::cout << std::endl;
                 continue;
@@ -2369,7 +2368,7 @@ int CLI::Run()
                     unsigned long start = std::stoul(partial);
                     unsigned long end = 1 + std::stoul(partial.substr(1 + pos));
                     for (unsigned long x = start; x < end; x++) {
-                        input = history[x];
+                        input = history_[x];
                         first = input.substr(0, input.find(" "));
                         std::cout << "Using history " << x << ": " + input
                                   << std::endl;
@@ -2378,8 +2377,8 @@ int CLI::Run()
                     continue;
                 }
                 unsigned long history_index = std::stoul(partial);
-                if (history_index < history.size()) {
-                    input = history[history_index];
+                if (history_index < history_.size()) {
+                    input = history_[history_index];
                     std::cout << "Using history " << history_index
                               << ": " + input << std::endl;
                     first = input.substr(0, input.find(" "));
@@ -2390,7 +2389,7 @@ int CLI::Run()
                 }
             }
         }
-        history.push_back(input);
+        history_.push_back(input);
 
         execute(first, input);
     }
@@ -2422,8 +2421,8 @@ bool CLI::send_message(
     message->AddFrame();
     message->AddFrame(proto::ProtoAsData(command));
 
-    OT_ASSERT(0 == message->Header().size());
-    OT_ASSERT(1 == message->Body().size());
+    OT_ASSERT(0 == message->Header().size())
+    OT_ASSERT(1 == message->Body().size())
 
     return socket.Send(message);
 }
@@ -2493,11 +2492,11 @@ void CLI::send_cheque(const std::string& in, const zmq::DealerSocket& socket)
 
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 void CLI::send_payment(const std::string& in, const zmq::DealerSocket& socket)
@@ -2615,11 +2614,11 @@ void CLI::transfer(const std::string& in, const zmq::DealerSocket& socket)
 
     const auto valid = proto::Validate(out, VERBOSE);
 
-    OT_ASSERT(valid);
+    OT_ASSERT(valid)
 
     const auto sent = send_message(socket, out);
 
-    OT_ASSERT(sent);
+    OT_ASSERT(sent)
 }
 
 }  // namespace opentxs::otctl
