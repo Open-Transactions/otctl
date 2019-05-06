@@ -43,6 +43,7 @@ private:
 
     const po::variables_map& options_;
     const std::string endpoint_;
+    std::vector<std::string> history_;
     OTZMQListenCallback callback_;
     OTZMQDealerSocket socket_;
     OTZMQListenCallback log_callback_;
