@@ -31,14 +31,14 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    const auto& ot = opentxs::OT::Start({});
+    const auto& ot = opentxs::InitContext();
     std::unique_ptr<opentxs::otctl::CLI> otctl;
     otctl.reset(new opentxs::otctl::CLI(ot, variables));
     otctl->Run();
     opentxs::LogNormal("Shutting down...").Flush();
     otctl.reset();
-    opentxs::OT::Cleanup();
-    opentxs::OT::Join();
+    opentxs::Cleanup();
+    opentxs::Join();
 
     return 0;
 }

@@ -19,7 +19,7 @@ namespace opentxs::otctl
 class CLI
 {
 public:
-    CLI(const api::Native& ot, const po::variables_map& options);
+    CLI(const api::Context& ot, const po::variables_map& options);
 
     int Run();
 
