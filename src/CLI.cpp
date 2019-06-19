@@ -231,7 +231,7 @@ const std::map<proto::AccountEventType, std::string> CLI::account_push_names_{
     {proto::ACCOUNTEVENT_OUTGOINGTRANSFER, "OUTGOING TRANSFER"},
 };
 
-CLI::CLI(const api::Native& ot, const po::variables_map& options)
+CLI::CLI(const api::Context& ot, const po::variables_map& options)
     : options_(options)
     , endpoint_(get_socket_path(options_))
     , history_()
@@ -2620,5 +2620,4 @@ void CLI::transfer(const std::string& in, const zmq::DealerSocket& socket)
 
     OT_ASSERT(sent)
 }
-
 }  // namespace opentxs::otctl
