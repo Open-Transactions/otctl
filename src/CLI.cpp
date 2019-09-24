@@ -237,7 +237,9 @@ CLI::CLI(const api::Context& ot, const po::variables_map& options)
     , history_()
     , callback_(zmq::ListenCallback::Factory(
           std::bind(&CLI::callback, this, std::placeholders::_1)))
-    , socket_(ot.ZMQ().DealerSocket(callback_, zmq::Socket::Direction::Connect))
+    , socket_(ot.ZMQ().DealerSocket(
+          callback_,
+          zmq::socket::Socket::Direction::Connect))
     , log_callback_(zmq::ListenCallback::Factory(
           std::bind(&CLI::remote_log, this, std::placeholders::_1)))
     , log_subscriber_(ot.ZMQ().SubscribeSocket(log_callback_))
@@ -278,7 +280,7 @@ void CLI::account_event_push(const proto::RPCPush& in, const int instance)
 
 void CLI::accept_pending_payment(
     const std::string& in,
-    const zmq::DealerSocket& socket)
+    const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     std::string destinationAccount{""};
@@ -348,8 +350,8 @@ void CLI::accept_pending_payment_response(const proto::RPCResponse& in)
 }
 
 void CLI::add_client_session(
-    const std::string& in,
-    const zmq::DealerSocket& socket)
+    [[maybe_unused]] const std::string& in,
+    const zmq::socket::Dealer& socket)
 {
     proto::RPCCommand out{};
     out.set_version(RPC_COMMAND_VERSION);
@@ -365,7 +367,7 @@ void CLI::add_client_session(
     OT_ASSERT(sent)
 }
 
-void CLI::add_contact(const std::string& in, const zmq::DealerSocket& socket)
+void CLI::add_contact(const std::string& in, const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     std::string label{""};
@@ -427,7 +429,7 @@ void CLI::add_contact_response(const proto::RPCResponse& in)
 
 void CLI::add_server_session(
     const std::string& in,
-    const zmq::DealerSocket& socket)
+    const zmq::socket::Dealer& socket)
 {
     std::string ip{};
     std::string onion{};
@@ -504,7 +506,9 @@ void CLI::callback(zmq::Message& in)
     }
 }
 
-void CLI::create_account(const std::string& in, const zmq::DealerSocket& socket)
+void CLI::create_account(
+    const std::string& in,
+    const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     std::string owner{""};
@@ -578,7 +582,7 @@ void CLI::create_account_response(const proto::RPCResponse& in)
 
 void CLI::create_compatible_account(
     const std::string& in,
-    const zmq::DealerSocket& socket)
+    const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     std::string nymID{""};
@@ -630,7 +634,7 @@ void CLI::create_compatible_account(
     OT_ASSERT(sent)
 }
 
-void CLI::create_nym(const std::string& in, const zmq::DealerSocket& socket)
+void CLI::create_nym(const std::string& in, const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     int type{proto::CITEMTYPE_INDIVIDUAL};
@@ -694,7 +698,7 @@ void CLI::create_nym_response(const proto::RPCResponse& in)
 
 void CLI::create_unit_definition(
     const std::string& in,
-    const zmq::DealerSocket& socket)
+    const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     std::string nymID{""};
@@ -784,7 +788,7 @@ void CLI::create_unit_definition(
         return;
     }
 
-    if (-1 == power) {
+    if (0 > power) {
         LogOutput(__FUNCTION__)(": Missing power option").Flush();
 
         return;
@@ -815,7 +819,7 @@ void CLI::create_unit_definition(
     create.set_primaryunitname(primaryUnitName);
     create.set_fractionalunitname(fractionalUnitName);
     create.set_tla(tickerSymbol);
-    create.set_power(power);
+    create.set_power(static_cast<std::uint32_t>(power));
     create.set_terms(terms);
     create.set_unitofaccount(
         static_cast<proto::ContactItemType>(unitOfAccount));
@@ -876,7 +880,7 @@ std::string CLI::get_command_name(const proto::RPCCommandType type)
 
 void CLI::get_compatible_accounts(
     const std::string& in,
-    const zmq::DealerSocket& socket)
+    const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     std::string nymID{""};
@@ -961,10 +965,10 @@ std::string CLI::get_json(const po::variables_map& cli)
 
         if ((0 >= pos) || (0xFFFFFFFF <= pos)) { return {}; }
 
-        std::uint64_t size(pos);
+        const auto size{static_cast<std::uint64_t>(pos)};
         file.seekg(0, std::ios::beg);
         std::vector<char> bytes(size);
-        file.read(&bytes[0], size);
+        file.read(&bytes[0], pos);
 
         return std::string(&bytes[0], size);
     }
@@ -974,7 +978,7 @@ std::string CLI::get_json(const po::variables_map& cli)
 
 void CLI::get_account_activity(
     const std::string& in,
-    const zmq::DealerSocket& socket)
+    const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     std::string accountID{""};
@@ -1033,7 +1037,7 @@ void CLI::get_account_activity_response(const proto::RPCResponse& in)
 
 void CLI::get_account_balance(
     const std::string& in,
-    const zmq::DealerSocket& socket)
+    const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     std::string accountID{""};
@@ -1097,7 +1101,7 @@ std::string CLI::get_account_push_name(const proto::AccountEventType type)
     }
 }
 
-void CLI::get_nym(const std::string& in, const zmq::DealerSocket& socket)
+void CLI::get_nym(const std::string& in, const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     std::string ownerID{""};
@@ -1158,7 +1162,7 @@ void CLI::get_nym_response(const proto::RPCResponse& in)
 
 void CLI::get_pending_payments(
     const std::string& in,
-    const zmq::DealerSocket& socket)
+    const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     std::string ownerID{""};
@@ -1217,7 +1221,7 @@ void CLI::get_pending_payments_response(const proto::RPCResponse& in)
     }
 }
 
-void CLI::get_seed(const std::string& in, const zmq::DealerSocket& socket)
+void CLI::get_seed(const std::string& in, const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     std::string seedID{""};
@@ -1272,7 +1276,7 @@ void CLI::get_seed_response(const proto::RPCResponse& in)
 
 void CLI::get_server_contract(
     const std::string& in,
-    const zmq::DealerSocket& socket)
+    const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     std::string serverID{""};
@@ -1320,12 +1324,13 @@ void CLI::get_server_contract_response(const proto::RPCResponse& in)
     print_basic_info(in);
 
     for (const auto& id : in.notary()) {
-        auto output =
-            proto::ProtoAsArmored(id, String::Factory("SERVER CONTRACT"));
+        // TODO it's not possible to construct an opentxs::Armored object
+        // without a client session auto output = proto::ProtoAsArmored(id,
+        // String::Factory("SERVER CONTRACT"));
 
-        OT_ASSERT(!output->empty())
+        // OT_ASSERT(!output->empty())
 
-        LogOutput("   Server Contract:\n")(output).Flush();
+        LogOutput("   Server Contract: ")(id.id()).Flush();
     }
 }
 
@@ -1374,7 +1379,7 @@ std::string CLI::get_status_name(const proto::RPCResponseCode code)
 
 void CLI::get_transaction_data(
     const std::string& in,
-    const network::zeromq::DealerSocket& socket)
+    const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     std::string uuid{""};
@@ -1437,7 +1442,7 @@ void CLI::get_transaction_data_response(const proto::RPCResponse& in)
     }
 }
 
-void CLI::get_workflow(const std::string& in, const zmq::DealerSocket& socket)
+void CLI::get_workflow(const std::string& in, const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     std::string nymID{""};
@@ -1553,7 +1558,7 @@ void CLI::get_workflow_response(const proto::RPCResponse& in)
     }
 }
 
-void CLI::import_seed(const std::string& in, const zmq::DealerSocket& socket)
+void CLI::import_seed(const std::string& in, const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     std::string words{""};
@@ -1613,7 +1618,7 @@ void CLI::import_seed_response(const proto::RPCResponse& in)
 
 void CLI::import_server_contract(
     const std::string& in,
-    const zmq::DealerSocket& socket)
+    const zmq::socket::Dealer& socket)
 {
     int instance{-1};
 
@@ -1668,7 +1673,7 @@ void CLI::import_server_contract_response(const proto::RPCResponse& in)
 
 void CLI::issue_unit_definition(
     const std::string& in,
-    const zmq::DealerSocket& socket)
+    const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     std::string owner{""};
@@ -1740,7 +1745,9 @@ void CLI::issue_unit_definition_response(const proto::RPCResponse& in)
     }
 }
 
-void CLI::list_accounts(const std::string& in, const zmq::DealerSocket& socket)
+void CLI::list_accounts(
+    const std::string& in,
+    const zmq::socket::Dealer& socket)
 {
     int instance{-1};
 
@@ -1783,8 +1790,8 @@ void CLI::list_accounts_response(const proto::RPCResponse& in)
 }
 
 void CLI::list_client_sessions(
-    const std::string& in,
-    const zmq::DealerSocket& socket)
+    [[maybe_unused]] const std::string& in,
+    const zmq::socket::Dealer& socket)
 {
     proto::RPCCommand out{};
     out.set_version(RPC_COMMAND_VERSION);
@@ -1800,7 +1807,9 @@ void CLI::list_client_sessions(
     OT_ASSERT(sent)
 }
 
-void CLI::list_contacts(const std::string& in, const zmq::DealerSocket& socket)
+void CLI::list_contacts(
+    const std::string& in,
+    const zmq::socket::Dealer& socket)
 {
     int instance{-1};
 
@@ -1842,7 +1851,7 @@ void CLI::list_contacts_response(const proto::RPCResponse& in)
     }
 }
 
-void CLI::list_nyms(const std::string& in, const zmq::DealerSocket& socket)
+void CLI::list_nyms(const std::string& in, const zmq::socket::Dealer& socket)
 {
     int instance{-1};
 
@@ -1884,7 +1893,7 @@ void CLI::list_nyms_response(const proto::RPCResponse& in)
     }
 }
 
-void CLI::list_seeds(const std::string& in, const zmq::DealerSocket& socket)
+void CLI::list_seeds(const std::string& in, const zmq::socket::Dealer& socket)
 {
     int instance{-1};
 
@@ -1928,7 +1937,7 @@ void CLI::list_seeds_response(const proto::RPCResponse& in)
 
 void CLI::list_server_contracts(
     const std::string& in,
-    const zmq::DealerSocket& socket)
+    const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     po::options_description options("Options");
@@ -1961,8 +1970,8 @@ void CLI::list_server_contracts(
 }
 
 void CLI::list_server_sessions(
-    const std::string& in,
-    const zmq::DealerSocket& socket)
+    [[maybe_unused]] const std::string& in,
+    const zmq::socket::Dealer& socket)
 {
     proto::RPCCommand out{};
     out.set_version(RPC_COMMAND_VERSION);
@@ -1998,7 +2007,7 @@ void CLI::list_session_response(const proto::RPCResponse& in)
 
 void CLI::list_unit_definitions(
     const std::string& in,
-    const zmq::DealerSocket& socket)
+    const zmq::socket::Dealer& socket)
 {
     int instance{-1};
 
@@ -2040,7 +2049,7 @@ void CLI::list_unit_definitions_response(const proto::RPCResponse& in)
     }
 }
 
-void CLI::move_funds(const std::string& in, const zmq::DealerSocket& socket)
+void CLI::move_funds(const std::string& in, const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     std::string sourceAccountID{""};
@@ -2102,7 +2111,7 @@ void CLI::move_funds(const std::string& in, const zmq::DealerSocket& socket)
     movefunds.set_sourceaccount(sourceAccountID);
     movefunds.set_destinationaccount(destinationAccountID);
     if (!memo.empty()) { movefunds.set_memo(memo); }
-    movefunds.set_amount(amount);
+    movefunds.set_amount(static_cast<unsigned int>(amount));
 
     const auto valid = proto::Validate(out, VERBOSE);
 
@@ -2148,7 +2157,9 @@ void CLI::print_basic_info(const proto::RPCResponse& in)
 
         if (proto::RPCRESPONSE_QUEUED == status.code() &&
             static_cast<int>(status.index()) < in.task_size()) {
-            LogOutput("   Task ID: ")(in.task(status.index()).id()).Flush();
+            LogOutput("   Task ID: ")(
+                in.task(static_cast<int>(status.index())).id())
+                .Flush();
         }
     }
 }
@@ -2156,17 +2167,18 @@ void CLI::print_basic_info(const proto::RPCResponse& in)
 void CLI::print_options_description(po::options_description& options)
 {
     std::stringstream str;
+
     for (auto option : options.options()) {
         str << option->format_name() << " " << option->description() << " ";
     }
+
     LogOutput(str.str()).Flush();
 }
 
 void CLI::process_push(zmq::Message& in)
 {
     const auto& frame = in.Body_at(1);
-    const auto response =
-        proto::RawToProto<proto::RPCPush>(frame.data(), frame.size());
+    const auto response = proto::Factory<proto::RPCPush>(frame);
 
     if (false == proto::Validate(response, VERBOSE)) {
         LogOutput(__FUNCTION__)(": Invalid RPCPush.").Flush();
@@ -2194,8 +2206,7 @@ void CLI::process_push(zmq::Message& in)
 void CLI::process_reply(zmq::Message& in)
 {
     const auto& frame = in.Body_at(0);
-    const auto response =
-        proto::RawToProto<proto::RPCResponse>(frame.data(), frame.size());
+    const auto response = proto::Factory<proto::RPCResponse>(frame);
 
     if (false == proto::Validate(response, VERBOSE)) {
         LogOutput(__FUNCTION__)(": Invalid RPCResponse.").Flush();
@@ -2212,7 +2223,7 @@ void CLI::process_reply(zmq::Message& in)
     }
 }
 
-void CLI::register_nym(const std::string& in, const zmq::DealerSocket& socket)
+void CLI::register_nym(const std::string& in, const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     std::string nymID{""};
@@ -2414,12 +2425,12 @@ void CLI::execute(std::string cmd, std::string arguments)
 }
 
 bool CLI::send_message(
-    const zmq::DealerSocket& socket,
+    const zmq::socket::Dealer& socket,
     const proto::RPCCommand command)
 {
     auto message = zmq::Message::Factory();
     message->AddFrame();
-    message->AddFrame(proto::ProtoAsData(command));
+    message->AddFrame(command);
 
     OT_ASSERT(0 == message->Header().size())
     OT_ASSERT(1 == message->Body().size())
@@ -2429,7 +2440,7 @@ bool CLI::send_message(
 
 // Invokes RPCCOMMAND_SENDPAYMENT for transaction type RPCPAYMENTTYPE_CHEQUE
 // only.
-void CLI::send_cheque(const std::string& in, const zmq::DealerSocket& socket)
+void CLI::send_cheque(const std::string& in, const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     std::string contactID{""};
@@ -2488,7 +2499,7 @@ void CLI::send_cheque(const std::string& in, const zmq::DealerSocket& socket)
     sendpayment.set_contact(contactID);
     sendpayment.set_sourceaccount(sourceAccountID);
     if (!memo.empty()) { sendpayment.set_memo(memo); }
-    sendpayment.set_amount(amount);
+    sendpayment.set_amount(static_cast<unsigned int>(amount));
 
     const auto valid = proto::Validate(out, VERBOSE);
 
@@ -2499,7 +2510,7 @@ void CLI::send_cheque(const std::string& in, const zmq::DealerSocket& socket)
     OT_ASSERT(sent)
 }
 
-void CLI::send_payment(const std::string& in, const zmq::DealerSocket& socket)
+void CLI::send_payment(const std::string& in, const zmq::socket::Dealer& socket)
 {
     const auto first = in.substr(0, in.find(" "));
     if ("sendcheque" == first) {
@@ -2514,7 +2525,7 @@ void CLI::send_payment_response(const proto::RPCResponse& in)
     print_basic_info(in);
 }
 
-void CLI::set_keys(const po::variables_map& cli, zmq::DealerSocket& socket)
+void CLI::set_keys(const po::variables_map& cli, zmq::socket::Dealer& socket)
 {
     std::stringstream json(get_json(cli));
     Json::Value root;
@@ -2538,7 +2549,7 @@ void CLI::task_complete_push(const proto::RPCPush& in, const int instance)
 
 // Invokes RPCCOMMAND_SENDPAYMENT for transaction type RPCPAYMENTTYPE_TRANSFER
 // only.
-void CLI::transfer(const std::string& in, const zmq::DealerSocket& socket)
+void CLI::transfer(const std::string& in, const zmq::socket::Dealer& socket)
 {
     int instance{-1};
     std::string contactID{""};
@@ -2610,7 +2621,7 @@ void CLI::transfer(const std::string& in, const zmq::DealerSocket& socket)
     sendpayment.set_sourceaccount(sourceAccountID);
     sendpayment.set_destinationaccount(destinationAccountID);
     if (!memo.empty()) { sendpayment.set_memo(memo); }
-    sendpayment.set_amount(amount);
+    sendpayment.set_amount(static_cast<unsigned int>(amount));
 
     const auto valid = proto::Validate(out, VERBOSE);
 
