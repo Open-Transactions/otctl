@@ -29,7 +29,7 @@ private:
     using PushHandler = void (*)(const proto::RPCPush&, const int);
     using ResponseHandler = void (*)(const proto::RPCResponse&);
     using Processor =
-        void (*)(const std::string&, const network::zeromq::DealerSocket&);
+        void (*)(const std::string&, const network::zeromq::socket::Dealer&);
 
     static const std::map<std::string, proto::RPCCommandType> commands_;
     static const std::map<proto::RPCPushType, PushHandler> push_handlers_;
@@ -51,137 +51,137 @@ private:
 
     static void accept_pending_payment(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void add_client_session(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void add_contact(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void add_server_session(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void create_account(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void create_compatible_account(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void create_nym(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void create_unit_definition(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     void execute(std::string cmd, std::string arguments);
 
     static void get_account_activity(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void get_account_balance(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void get_compatible_accounts(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void get_nym(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void get_pending_payments(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void get_seed(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void get_server_contract(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void get_transaction_data(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void get_workflow(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void import_seed(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void import_server_contract(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void issue_unit_definition(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void list_accounts(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void list_client_sessions(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void list_contacts(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void list_nyms(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void list_seeds(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void list_server_contracts(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void list_server_sessions(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void list_unit_definitions(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void move_funds(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void register_nym(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void send_cheque(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void send_payment(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void transfer(
         const std::string& in,
-        const network::zeromq::DealerSocket& socket);
+        const network::zeromq::socket::Dealer& socket);
 
     static void accept_pending_payment_response(const proto::RPCResponse& in);
 
@@ -271,12 +271,12 @@ private:
     static void process_reply(network::zeromq::Message& in);
 
     static bool send_message(
-        const network::zeromq::DealerSocket& socket,
+        const network::zeromq::socket::Dealer& socket,
         const proto::RPCCommand command);
 
     static void set_keys(
         const po::variables_map& cli,
-        network::zeromq::DealerSocket& socket);
+        network::zeromq::socket::Dealer& socket);
 
     static void task_complete_push(
         const proto::RPCPush& in,
